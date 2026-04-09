@@ -75,28 +75,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   private async validateApiKey(req: any, payload: JwtApiKeyPayload) {
-    let ApiKeyModule: any;
-    let isApiKeyModuleReady = false;
-
     try {
+      // 通过 ModuleRef 延迟加载 ApiKeyService，避免循环依赖
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      ApiKeyModule = require('./../../../ee/api-key/api-key.service');
-      isApiKeyModuleReady = true;
+      const { ApiKeyService } = require('../../api-key/api-key.service');
+      const apiKeyService = this.moduleRef.get(ApiKeyService, { strict: false });
+      return apiKeyService.validateApiKey(payload);
     } catch (err) {
-      this.logger.debug(
-        'API Key module requested but enterprise module not bundled in this build',
-      );
-      isApiKeyModuleReady = false;
+      this.logger.debug('ApiKeyService 加载失败', err);
+      throw new UnauthorizedException('API Key 验证失败');
     }
-
-    if (isApiKeyModuleReady) {
-      const ApiKeyService = this.moduleRef.get(ApiKeyModule.ApiKeyService, {
-        strict: false,
-      });
-
-      return ApiKeyService.validateApiKey(payload);
-    }
-
-    throw new UnauthorizedException('Enterprise API Key module missing');
   }
+
 }

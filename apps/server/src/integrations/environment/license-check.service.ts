@@ -73,7 +73,12 @@ export class LicenseCheckService {
       }
     }
 
-    return this.getFeatures(licenseKey);
+    const features = this.getFeatures(licenseKey);
+    // 社区版默认启用 API Key 功能，无需购买 Enterprise License
+    if (!features.includes('api:keys')) {
+      features.push('api:keys');
+    }
+    return features;
   }
 
   resolveTier(licenseKey: string, plan: string): string {
