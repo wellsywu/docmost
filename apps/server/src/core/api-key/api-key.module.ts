@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ApiKeyService } from './api-key.service';
 import { ApiKeyController } from './api-key.controller';
-import { AuthModule } from '../auth/auth.module';
+import { TokenModule } from '../auth/token.module';
 import { DatabaseModule } from '../../database/database.module';
 
 @Module({
-  imports: [AuthModule, DatabaseModule],
+  imports: [TokenModule, DatabaseModule],
   controllers: [ApiKeyController],
   providers: [ApiKeyService],
   exports: [ApiKeyService],
