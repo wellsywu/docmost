@@ -27,6 +27,10 @@ export class LicenseCheckService {
   }
 
   hasFeature(licenseKey: string, feature: string, plan?: string): boolean {
+    // 本地自行实现的功能，无需 EE License
+    const localFeatures = new Set(['api:keys']);
+    if (localFeatures.has(feature)) return true;
+
     if (this.environmentService.isCloud()) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports

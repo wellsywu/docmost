@@ -60,7 +60,7 @@ export class ApiKeyController {
     @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
-    return this.apiKeyService.update(dto, user.id, workspace.id);
+    return this.apiKeyService.update(dto, user.id, workspace.id, user.role);
   }
 
   /**
@@ -73,6 +73,6 @@ export class ApiKeyController {
     @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
-    return this.apiKeyService.revoke(dto.apiKeyId, user.id, workspace.id);
+    return this.apiKeyService.revoke(dto.apiKeyId, user.id, workspace.id, user.role);
   }
 }

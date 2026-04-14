@@ -13,8 +13,8 @@ import { WorkspaceRepo } from '@docmost/db/repos/workspace/workspace.repo';
 import { JwtApiKeyPayload } from '../auth/dto/jwt-payload';
 import { CreateApiKeyDto, UpdateApiKeyDto } from './dto/api-key.dto';
 import { User, Workspace } from '@docmost/db/types/entity.types';
-import * as crypto from 'crypto';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
+import { UserRole } from '../../common/helpers/types/permission';
 
 @Injectable()
 export class ApiKeyService {
@@ -26,14 +26,7 @@ export class ApiKeyService {
   ) {}
 
   /**
-   * 计算 token 的 SHA-256 哈希值
-   */
-  private hashToken(token: string): string {
-    return crypto.createHash('sha256').update(token).digest('hex');
-  }
-
-  /**
-   * 创建 API Key：生成 JWT → 计算哈希 → 写入数据库
+   * 创建 API Key：插入记录获取 id → 生成 JWT
    * 返回的 token 只有此时可以查看，后续不再返回原始 token
    */
   async create(
@@ -41,25 +34,25 @@ export class ApiKeyService {
     user: User,
     workspace: Workspace,
   ): Promise<any> {
-    // 先占位插入记录，获取 id
-    const [apiKeyRecord] = await this.db
-      .insertInto('api_keys')
+    // 插入记录获取 id（使用 camelCase 列名，CamelCasePlugin 会自动映射到 snake_case）
+    const apiKeyRecord = await this.db
+      .insertInto('apiKeys')
       .values({
         name: dto.name,
-        creator_id: user.id,
-        workspace_id: workspace.id,
-        expires_at: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        creatorId: user.id,
+        workspaceId: workspace.id,
+        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       })
       .returning([
         'id',
         'name',
-        'creator_id',
-        'workspace_id',
-        'expires_at',
-        'created_at',
-        'updated_at',
+        'creatorId',
+        'workspaceId',
+        'expiresAt',
+        'createdAt',
+        'updatedAt',
       ])
-      .execute();
+      .executeTakeFirst();
 
     if (!apiKeyRecord) {
       throw new BadRequestException('创建 API Key 失败');
@@ -79,54 +72,52 @@ export class ApiKeyService {
       expiresIn: expiresIn && expiresIn > 0 ? expiresIn : undefined,
     });
 
-    // 计算哈希并更新记录
-    const keyHash = this.hashToken(token);
-    await this.db
-      .updateTable('api_keys')
-      .set({ key_hash: keyHash })
-      .where('id', '=', apiKeyRecord.id)
-      .execute();
-
     return {
-      ...apiKeyRecord,
-      token,  // 仅此一次返回原始 token
-      creatorId: apiKeyRecord.creator_id,
-      workspaceId: apiKeyRecord.workspace_id,
-      expiresAt: apiKeyRecord.expires_at,
-      createdAt: apiKeyRecord.created_at,
-      creator: { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl },
+      id: apiKeyRecord.id,
+      name: apiKeyRecord.name,
+      token, // 仅此一次返回原始 token
+      creatorId: apiKeyRecord.creatorId,
+      workspaceId: apiKeyRecord.workspaceId,
+      expiresAt: apiKeyRecord.expiresAt,
+      createdAt: apiKeyRecord.createdAt,
+      creator: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+      },
     };
   }
 
   /**
    * 验证 API Key（由 JwtStrategy 调用）
-   * 验证 JWT payload 中的 apiKeyId 对应的记录是否有效
+   * 通过 JWT payload 中的 apiKeyId 查询记录，校验有效性
    */
   async validateApiKey(payload: JwtApiKeyPayload): Promise<{ user: any; workspace: any }> {
     const { sub: userId, workspaceId, apiKeyId } = payload;
 
     const apiKey = await this.db
-      .selectFrom('api_keys')
+      .selectFrom('apiKeys')
       .selectAll()
       .where('id', '=', apiKeyId)
-      .where('workspace_id', '=', workspaceId)
-      .where('creator_id', '=', userId)
-      .where('deleted_at', 'is', null)
+      .where('workspaceId', '=', workspaceId)
+      .where('creatorId', '=', userId)
+      .where('deletedAt', 'is', null)
       .executeTakeFirst();
 
     if (!apiKey) {
       throw new UnauthorizedException('API Key 不存在或已被撤销');
     }
 
-    // 检查有无过期
-    if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
+    // 检查是否过期
+    if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
       throw new UnauthorizedException('API Key 已过期');
     }
 
-    // 更新最后使用时间（异步不阻塞）
+    // 异步更新最后使用时间（不阻塞响应）
     this.db
-      .updateTable('api_keys')
-      .set({ last_used_at: new Date() })
+      .updateTable('apiKeys')
+      .set({ lastUsedAt: new Date() })
       .where('id', '=', apiKeyId)
       .execute()
       .catch(() => {});
@@ -145,7 +136,8 @@ export class ApiKeyService {
   }
 
   /**
-   * 列出当前用户的 API Key（分页）
+   * 列出 API Key（支持分页和管理员全量视图）
+   * 游标使用 createdAt ISO 字符串，与 DESC 排序方向一致
    */
   async list(
     userId: string,
@@ -154,59 +146,64 @@ export class ApiKeyService {
     adminView = false,
   ): Promise<any> {
     let query = this.db
-      .selectFrom('api_keys as ak')
-      .leftJoin('users as u', 'u.id', 'ak.creator_id')
+      .selectFrom('apiKeys')
+      .leftJoin('users', 'users.id', 'apiKeys.creatorId')
       .select([
-        'ak.id',
-        'ak.name',
-        'ak.creator_id',
-        'ak.workspace_id',
-        'ak.expires_at',
-        'ak.last_used_at',
-        'ak.created_at',
-        'ak.updated_at',
-        'u.id as user_id',
-        'u.name as user_name',
-        'u.email as user_email',
-        'u.avatar_url as user_avatar_url',
+        'apiKeys.id',
+        'apiKeys.name',
+        'apiKeys.creatorId',
+        'apiKeys.workspaceId',
+        'apiKeys.expiresAt',
+        'apiKeys.lastUsedAt',
+        'apiKeys.createdAt',
+        'apiKeys.updatedAt',
+        'users.id as userId',
+        'users.name as userName',
+        'users.email as userEmail',
+        'users.avatarUrl as userAvatarUrl',
       ])
-      .where('ak.workspace_id', '=', workspaceId)
-      .where('ak.deleted_at', 'is', null);
+      .where('apiKeys.workspaceId', '=', workspaceId)
+      .where('apiKeys.deletedAt', 'is', null);
 
     // 非管理员视图：只看自己的
     if (!adminView) {
-      query = query.where('ak.creator_id', '=', userId);
+      query = query.where('apiKeys.creatorId', '=', userId);
     }
 
-    query = query.orderBy('ak.created_at', 'desc');
+    // 按创建时间降序（最新在前）
+    query = query.orderBy('apiKeys.createdAt', 'desc');
 
     const limit = pagination?.limit ?? 20;
-    const cursor = pagination?.cursor;
+    const cursor = pagination?.cursor; // cursor 为上一页最后一条的 createdAt ISO 字符串
 
+    // 游标筛选：取比上一条更旧的记录（与 DESC 排序方向一致）
     if (cursor) {
-      query = query.where('ak.id', '<', cursor);
+      query = query.where('apiKeys.createdAt', '<', new Date(cursor));
     }
 
     const items = await query.limit(limit + 1).execute();
     const hasNextPage = items.length > limit;
     if (hasNextPage) items.pop();
 
-    const nextCursor = hasNextPage ? items[items.length - 1]?.id : undefined;
+    // nextCursor 存储最后一条的 createdAt ISO 字符串，用于下次分页
+    const nextCursor = hasNextPage
+      ? (items[items.length - 1]?.createdAt as Date)?.toISOString()
+      : undefined;
 
     const mappedItems = items.map((item) => ({
       id: item.id,
       name: item.name,
-      creatorId: item.creator_id,
-      workspaceId: item.workspace_id,
-      expiresAt: item.expires_at,
-      lastUsedAt: item.last_used_at,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
+      creatorId: item.creatorId,
+      workspaceId: item.workspaceId,
+      expiresAt: item.expiresAt,
+      lastUsedAt: item.lastUsedAt,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
       creator: {
-        id: item.user_id,
-        name: item.user_name,
-        email: item.user_email,
-        avatarUrl: item.user_avatar_url,
+        id: item.userId,
+        name: item.userName,
+        email: item.userEmail,
+        avatarUrl: item.userAvatarUrl,
       },
     }));
 
@@ -222,83 +219,82 @@ export class ApiKeyService {
 
   /**
    * 更新 API Key 名称
+   * 只有创建者或管理员（owner/admin）可以操作
    */
   async update(
     dto: UpdateApiKeyDto,
     userId: string,
     workspaceId: string,
+    userRole?: string,
   ): Promise<any> {
     const apiKey = await this.db
-      .selectFrom('api_keys')
+      .selectFrom('apiKeys')
       .selectAll()
       .where('id', '=', dto.apiKeyId)
-      .where('workspace_id', '=', workspaceId)
-      .where('deleted_at', 'is', null)
+      .where('workspaceId', '=', workspaceId)
+      .where('deletedAt', 'is', null)
       .executeTakeFirst();
 
     if (!apiKey) {
       throw new NotFoundException('API Key 不存在');
     }
 
-    // 只有创建者或管理员可以更新；此处先检查创建者
-    if (apiKey.creator_id !== userId) {
+    // 管理员（owner/admin）可以操作所有人的 API Key
+    const isAdmin = userRole === UserRole.OWNER || userRole === UserRole.ADMIN;
+    if (apiKey.creatorId !== userId && !isAdmin) {
       throw new ForbiddenException('无权操作此 API Key');
     }
 
-    const [updated] = await this.db
-      .updateTable('api_keys')
-      .set({ name: dto.name, updated_at: new Date() })
+    const updated = await this.db
+      .updateTable('apiKeys')
+      .set({ name: dto.name, updatedAt: new Date() })
       .where('id', '=', dto.apiKeyId)
       .returning([
         'id',
         'name',
-        'creator_id',
-        'workspace_id',
-        'expires_at',
-        'last_used_at',
-        'created_at',
-        'updated_at',
+        'creatorId',
+        'workspaceId',
+        'expiresAt',
+        'lastUsedAt',
+        'createdAt',
+        'updatedAt',
       ])
-      .execute();
+      .executeTakeFirst();
 
-    return {
-      ...updated,
-      creatorId: updated.creator_id,
-      workspaceId: updated.workspace_id,
-      expiresAt: updated.expires_at,
-      lastUsedAt: updated.last_used_at,
-      createdAt: updated.created_at,
-      updatedAt: updated.updated_at,
-    };
+    return updated;
   }
 
   /**
    * 撤销 API Key（软删除）
+   * 只有创建者或管理员（owner/admin）可以操作
    */
   async revoke(
     apiKeyId: string,
     userId: string,
     workspaceId: string,
+    userRole?: string,
   ): Promise<void> {
     const apiKey = await this.db
-      .selectFrom('api_keys')
+      .selectFrom('apiKeys')
       .selectAll()
       .where('id', '=', apiKeyId)
-      .where('workspace_id', '=', workspaceId)
-      .where('deleted_at', 'is', null)
+      .where('workspaceId', '=', workspaceId)
+      .where('deletedAt', 'is', null)
       .executeTakeFirst();
 
     if (!apiKey) {
       throw new NotFoundException('API Key 不存在');
     }
 
-    if (apiKey.creator_id !== userId) {
+    // 管理员（owner/admin）可以撤销所有人的 API Key
+    const isAdmin = userRole === UserRole.OWNER || userRole === UserRole.ADMIN;
+    if (apiKey.creatorId !== userId && !isAdmin) {
       throw new ForbiddenException('无权撤销此 API Key');
     }
 
     await this.db
-      .updateTable('api_keys')
-      .set({ deleted_at: new Date() })
+      .updateTable('apiKeys')
+      .set({ deletedAt: new Date() })
       .where('id', '=', apiKeyId)
       .execute();
   }
