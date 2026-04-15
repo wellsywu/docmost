@@ -201,3 +201,26 @@ docker compose logs -f --tail=100 docmost
 - [ ] Configure reverse proxy (Nginx/Caddy) with HTTPS
 - [ ] Set up database backup cron job
 - [ ] Configure firewall (only expose 80/443)
+
+---
+
+## 6. Known Issues
+
+### ⚠️ Login redirect failure when HTTP/HTTPS protocol mismatch
+
+**Symptom**: After login, the page stays on the login screen without error.
+
+**Cause**: The `authToken` cookie is set with the `Secure` flag when `APP_URL` uses `https://`.
+Browsers **will not send `Secure` cookies over HTTP connections**, causing subsequent requests to `/users/me` to return `401`, which traps the user on the login page.
+
+**Rule**: `APP_URL` protocol **must match** how users access the application.
+
+| `APP_URL` | User Access | Result |
+|---|---|---|
+| `https://your-domain.com` | HTTPS | ✅ Works |
+| `https://your-domain.com` | HTTP | ❌ Login loops |
+| `http://your-server:3000` | HTTP | ✅ Works (insecure) |
+
+**Fix**: Always redirect HTTP → HTTPS via Nginx, or ensure `APP_URL` matches actual access protocol.
+
+> See full SOP: [docs/sop-login-redirect-issue.md](./sop-login-redirect-issue.md)

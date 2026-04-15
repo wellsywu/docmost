@@ -1,9 +1,13 @@
 services:
   docmost:
-    image: docmost/docmost:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       APP_URL: 'http://localhost:3000'
       APP_SECRET: 'REPLACE_WITH_LONG_SECRET'
@@ -16,17 +20,22 @@ services:
       - docmost:/app/data/storage
 
   db:
-    image: postgres:18
+    image: postgres:16-alpine
     environment:
       POSTGRES_DB: docmost
       POSTGRES_USER: docmost
       POSTGRES_PASSWORD: STRONG_DB_PASSWORD
     restart: unless-stopped
     volumes:
-      - db_data:/var/lib/postgresql
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docmost -d docmost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
-    image: redis:8
+    image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     restart: unless-stopped
     volumes:

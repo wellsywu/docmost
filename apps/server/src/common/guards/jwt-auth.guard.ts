@@ -1,4 +1,5 @@
 import {
+  CanActivate,
   ExecutionContext,
   Injectable,
   UnauthorizedException,
@@ -10,7 +11,7 @@ import { EnvironmentService } from '../../integrations/environment/environment.s
 import { addDays } from 'date-fns';
 
 @Injectable()
-export class JwtAuthGuard extends AuthGuard('jwt') {
+export class JwtAuthGuard extends AuthGuard(['jwt', 'api-key']) implements CanActivate {
   constructor(
     private reflector: Reflector,
     private environmentService: EnvironmentService,
@@ -18,17 +19,14 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
+    if (isPublic) return true;
 
-    if (isPublic) {
-      return true;
-    }
-
-    return super.canActivate(context);
+    return super.canActivate(context) as Promise<boolean>;
   }
 
   handleRequest(err: any, user: any, info: any, ctx: ExecutionContext) {

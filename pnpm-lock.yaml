@@ -652,6 +652,9 @@ importers:
       p-limit:
         specifier: ^7.3.0
         version: 7.3.0
+      passport-custom:
+        specifier: ^1.1.1
+        version: 1.1.1
       passport-google-oauth20:
         specifier: ^2.0.0
         version: 2.0.0
@@ -8770,6 +8773,10 @@ packages:
   parseurl@1.3.3:
     resolution: {integrity: sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ==}
     engines: {node: '>= 0.8'}
+
+  passport-custom@1.1.1:
+    resolution: {integrity: sha512-/2m7jUGxmCYvoqenLB9UrmkCgPt64h8ZtV+UtuQklZ/Tn1NpKBeOorCYkB/8lMRoiZ5hUrCoMmDtxCS/d38mlg==}
+    engines: {node: '>= 0.10.0'}
 
   passport-google-oauth20@2.0.0:
     resolution: {integrity: sha512-KSk6IJ15RoxuGq7D1UKK/8qKhNfzbLeLrG3gkLZ7p4A6DBCcv7xpyQwuXtWdpyR0+E0mwkpjY1VfPOhxQrKzdQ==}
@@ -19928,6 +19935,10 @@ snapshots:
       peberminta: 0.9.0
 
   parseurl@1.3.3: {}
+
+  passport-custom@1.1.1:
+    dependencies:
+      passport-strategy: 1.0.0
 
   passport-google-oauth20@2.0.0:
     dependencies:

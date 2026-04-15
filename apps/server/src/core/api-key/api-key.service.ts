@@ -5,36 +5,44 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
-import { TokenService } from '../auth/services/token.service';
 import { UserRepo } from '@docmost/db/repos/user/user.repo';
 import { WorkspaceRepo } from '@docmost/db/repos/workspace/workspace.repo';
-import { JwtApiKeyPayload } from '../auth/dto/jwt-payload';
 import { CreateApiKeyDto, UpdateApiKeyDto } from './dto/api-key.dto';
 import { User, Workspace } from '@docmost/db/types/entity.types';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
 import { UserRole } from '../../common/helpers/types/permission';
 
+/** 生成 Opaque Token 的 sha256 哈希 */
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 @Injectable()
 export class ApiKeyService {
   constructor(
     @InjectKysely() private readonly db: KyselyDB,
-    private readonly tokenService: TokenService,
     private readonly userRepo: UserRepo,
     private readonly workspaceRepo: WorkspaceRepo,
   ) {}
 
   /**
-   * 创建 API Key：插入记录获取 id → 生成 JWT
-   * 返回的 token 只有此时可以查看，后续不再返回原始 token
+   * 创建 API Key
+   * 生成随机 Opaque Token (dm_sk_ + 64 hex chars)，存储 sha256 hash
+   * 原始 token 只在创建时返回一次，此后无法查询
    */
   async create(
     dto: CreateApiKeyDto,
     user: User,
     workspace: Workspace,
   ): Promise<any> {
-    // 插入记录获取 id（使用 camelCase 列名，CamelCasePlugin 会自动映射到 snake_case）
+    // 生成随机 Opaque Token：dm_sk_ + 32 字节随机 hex = 70 字符
+    const rawToken = 'dm_sk_' + crypto.randomBytes(32).toString('hex');
+    // 只存 hash，不存原始 token
+    const keyHash = hashToken(rawToken);
+
     const apiKeyRecord = await this.db
       .insertInto('apiKeys')
       .values({
@@ -42,6 +50,7 @@ export class ApiKeyService {
         creatorId: user.id,
         workspaceId: workspace.id,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        keyHash,
       })
       .returning([
         'id',
@@ -58,24 +67,10 @@ export class ApiKeyService {
       throw new BadRequestException('创建 API Key 失败');
     }
 
-    // 使用插入后的 id 生成 JWT
-    const expiresIn = dto.expiresAt
-      ? Math.floor(
-          (new Date(dto.expiresAt).getTime() - Date.now()) / 1000,
-        )
-      : undefined;
-
-    const token = await this.tokenService.generateApiToken({
-      apiKeyId: apiKeyRecord.id,
-      user,
-      workspaceId: workspace.id,
-      expiresIn: expiresIn && expiresIn > 0 ? expiresIn : undefined,
-    });
-
     return {
       id: apiKeyRecord.id,
       name: apiKeyRecord.name,
-      token, // 仅此一次返回原始 token
+      token: rawToken, // ⚠️ 仅此一次返回，后续无法查询
       creatorId: apiKeyRecord.creatorId,
       workspaceId: apiKeyRecord.workspaceId,
       expiresAt: apiKeyRecord.expiresAt,
@@ -90,18 +85,18 @@ export class ApiKeyService {
   }
 
   /**
-   * 验证 API Key（由 JwtStrategy 调用）
-   * 通过 JWT payload 中的 apiKeyId 查询记录，校验有效性
+   * 验证 API Key（由 JwtAuthGuard 调用）
+   * 接收原始 token 字符串，计算 sha256 查库验证
+   *
+   * @param rawToken 原始 dm_sk_xxx 格式 token
    */
-  async validateApiKey(payload: JwtApiKeyPayload): Promise<{ user: any; workspace: any }> {
-    const { sub: userId, workspaceId, apiKeyId } = payload;
+  async validateApiKey(rawToken: string): Promise<{ user: any; workspace: any }> {
+    const keyHash = hashToken(rawToken);
 
     const apiKey = await this.db
       .selectFrom('apiKeys')
       .selectAll()
-      .where('id', '=', apiKeyId)
-      .where('workspaceId', '=', workspaceId)
-      .where('creatorId', '=', userId)
+      .where('keyHash', '=', keyHash)
       .where('deletedAt', 'is', null)
       .executeTakeFirst();
 
@@ -118,16 +113,16 @@ export class ApiKeyService {
     this.db
       .updateTable('apiKeys')
       .set({ lastUsedAt: new Date() })
-      .where('id', '=', apiKeyId)
+      .where('keyHash', '=', keyHash)
       .execute()
       .catch(() => {});
 
-    const user = await this.userRepo.findById(userId, workspaceId);
+    const user = await this.userRepo.findById(apiKey.creatorId, apiKey.workspaceId);
     if (!user) {
       throw new UnauthorizedException('用户不存在');
     }
 
-    const workspace = await this.workspaceRepo.findById(workspaceId);
+    const workspace = await this.workspaceRepo.findById(apiKey.workspaceId);
     if (!workspace) {
       throw new UnauthorizedException('工作空间不存在');
     }
@@ -138,6 +133,7 @@ export class ApiKeyService {
   /**
    * 列出 API Key（支持分页和管理员全量视图）
    * 游标使用 createdAt ISO 字符串，与 DESC 排序方向一致
+   * 注意：不返回 keyHash 字段（安全考虑）
    */
   async list(
     userId: string,
@@ -165,18 +161,15 @@ export class ApiKeyService {
       .where('apiKeys.workspaceId', '=', workspaceId)
       .where('apiKeys.deletedAt', 'is', null);
 
-    // 非管理员视图：只看自己的
     if (!adminView) {
       query = query.where('apiKeys.creatorId', '=', userId);
     }
 
-    // 按创建时间降序（最新在前）
     query = query.orderBy('apiKeys.createdAt', 'desc');
 
     const limit = pagination?.limit ?? 20;
-    const cursor = pagination?.cursor; // cursor 为上一页最后一条的 createdAt ISO 字符串
+    const cursor = pagination?.cursor;
 
-    // 游标筛选：取比上一条更旧的记录（与 DESC 排序方向一致）
     if (cursor) {
       query = query.where('apiKeys.createdAt', '<', new Date(cursor));
     }
@@ -185,7 +178,6 @@ export class ApiKeyService {
     const hasNextPage = items.length > limit;
     if (hasNextPage) items.pop();
 
-    // nextCursor 存储最后一条的 createdAt ISO 字符串，用于下次分页
     const nextCursor = hasNextPage
       ? (items[items.length - 1]?.createdAt as Date)?.toISOString()
       : undefined;
@@ -209,17 +201,14 @@ export class ApiKeyService {
 
     return {
       items: mappedItems,
-      meta: {
-        hasNextPage,
-        hasPrevPage: !!cursor,
-        nextCursor,
-      },
+      meta: { hasNextPage, hasPrevPage: !!cursor, nextCursor },
     };
   }
 
   /**
    * 更新 API Key 名称
    * 只有创建者或管理员（owner/admin）可以操作
+   * 注意：重命名不影响 key_hash，原始 token 继续有效
    */
   async update(
     dto: UpdateApiKeyDto,
@@ -239,13 +228,12 @@ export class ApiKeyService {
       throw new NotFoundException('API Key 不存在');
     }
 
-    // 管理员（owner/admin）可以操作所有人的 API Key
     const isAdmin = userRole === UserRole.OWNER || userRole === UserRole.ADMIN;
     if (apiKey.creatorId !== userId && !isAdmin) {
       throw new ForbiddenException('无权操作此 API Key');
     }
 
-    const updated = await this.db
+    return this.db
       .updateTable('apiKeys')
       .set({ name: dto.name, updatedAt: new Date() })
       .where('id', '=', dto.apiKeyId)
@@ -260,13 +248,12 @@ export class ApiKeyService {
         'updatedAt',
       ])
       .executeTakeFirst();
-
-    return updated;
   }
 
   /**
    * 撤销 API Key（软删除）
    * 只有创建者或管理员（owner/admin）可以操作
+   * 撤销后立即生效——下次验证查询 WHERE deleted_at IS NULL 不命中
    */
   async revoke(
     apiKeyId: string,
@@ -286,7 +273,6 @@ export class ApiKeyService {
       throw new NotFoundException('API Key 不存在');
     }
 
-    // 管理员（owner/admin）可以撤销所有人的 API Key
     const isAdmin = userRole === UserRole.OWNER || userRole === UserRole.ADMIN;
     if (apiKey.creatorId !== userId && !isAdmin) {
       throw new ForbiddenException('无权撤销此 API Key');

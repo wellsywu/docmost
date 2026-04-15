@@ -2,14 +2,13 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
 import { EnvironmentService } from '../../../integrations/environment/environment.service';
-import { JwtApiKeyPayload, JwtPayload, JwtType } from '../dto/jwt-payload';
+import { JwtPayload, JwtType } from '../dto/jwt-payload';
 import { WorkspaceRepo } from '@docmost/db/repos/workspace/workspace.repo';
 import { UserRepo } from '@docmost/db/repos/user/user.repo';
 import { UserSessionRepo } from '@docmost/db/repos/session/user-session.repo';
 import { SessionActivityService } from '../../session/session-activity.service';
 import { FastifyRequest } from 'fastify';
 import { extractBearerTokenFromHeader, isUserDisabled } from '../../../common/helpers';
-import { ModuleRef } from '@nestjs/core';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -21,11 +20,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     private userSessionRepo: UserSessionRepo,
     private sessionActivityService: SessionActivityService,
     private readonly environmentService: EnvironmentService,
-    private moduleRef: ModuleRef,
   ) {
     super({
       jwtFromRequest: (req: FastifyRequest) => {
-        return req.cookies?.authToken || extractBearerTokenFromHeader(req);
+        const bearer = extractBearerTokenFromHeader(req);
+        // dm_sk_ 开头的 token 由 ApiKeyStrategy 处理，JWT Strategy 跳过
+        if (bearer?.startsWith('dm_sk_')) return null;
+        return req.cookies?.authToken || bearer;
       },
       ignoreExpiration: false,
       secretOrKey: environmentService.getAppSecret(),
@@ -33,7 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(req: any, payload: JwtPayload | JwtApiKeyPayload) {
+  async validate(req: any, payload: JwtPayload) {
     if (!payload.workspaceId) {
       throw new UnauthorizedException();
     }
@@ -42,21 +43,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Workspace does not match');
     }
 
-    if (payload.type === JwtType.API_KEY) {
-      return this.validateApiKey(req, payload as JwtApiKeyPayload);
-    }
-
+    // API_KEY 类型由独立的 ApiKeyStrategy 处理，此处仅处理 ACCESS 类型
     if (payload.type !== JwtType.ACCESS) {
       throw new UnauthorizedException();
     }
 
     const workspace = await this.workspaceRepo.findById(payload.workspaceId);
-
     if (!workspace) {
       throw new UnauthorizedException();
     }
-    const user = await this.userRepo.findById(payload.sub, payload.workspaceId);
 
+    const user = await this.userRepo.findById(payload.sub, payload.workspaceId);
     if (!user || isUserDisabled(user)) {
       throw new UnauthorizedException();
     }
@@ -72,19 +69,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     return { user, workspace };
-  }
-
-  private async validateApiKey(req: any, payload: JwtApiKeyPayload) {
-    try {
-      // 通过 ModuleRef 延迟加载 ApiKeyService，避免循环依赖
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { ApiKeyService } = require('../../api-key/api-key.service');
-      const apiKeyService = this.moduleRef.get(ApiKeyService, { strict: false });
-      return apiKeyService.validateApiKey(payload);
-    } catch (err) {
-      this.logger.debug('ApiKeyService 加载失败', err);
-      throw new UnauthorizedException('API Key 验证失败');
-    }
   }
 
 }
