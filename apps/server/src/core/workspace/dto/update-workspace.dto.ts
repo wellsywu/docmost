@@ -3,6 +3,7 @@ import { CreateWorkspaceDto } from './create-workspace.dto';
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -10,10 +11,6 @@ import {
 } from 'class-validator';
 
 export class UpdateWorkspaceDto extends PartialType(CreateWorkspaceDto) {
-  @IsOptional()
-  @IsString()
-  logo: string;
-
   @IsOptional()
   @IsArray()
   emailDomains: string[];
@@ -47,7 +44,28 @@ export class UpdateWorkspaceDto extends PartialType(CreateWorkspaceDto) {
   mcpEnabled: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isScimEnabled: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  aiChat: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   trashRetentionDays: number;
+
+  @IsOptional()
+  @IsBoolean()
+  allowMemberTemplates: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowPersonalSpaces: boolean;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['read', 'edit'])
+  defaultPageEditMode: string;
 }

@@ -27,12 +27,19 @@ export interface IWorkspace {
   mcpEnabled?: boolean;
   trashRetentionDays?: number;
   restrictApiToAdmins?: boolean;
+  allowMemberTemplates?: boolean;
+  allowPersonalSpaces?: boolean;
+  defaultPageEditMode?: string;
+  isScimEnabled?: boolean;
 }
 
 export interface IWorkspaceSettings {
   ai?: IWorkspaceAiSettings;
   sharing?: IWorkspaceSharingSettings;
   api?: IWorkspaceApiSettings;
+  templates?: IWorkspaceTemplateSettings;
+  spaces?: IWorkspaceSpaceSettings;
+  defaultPageEditMode?: string;
 }
 
 export interface IWorkspaceApiSettings {
@@ -43,10 +50,19 @@ export interface IWorkspaceAiSettings {
   search?: boolean;
   generative?: boolean;
   mcp?: boolean;
+  chat?: boolean;
 }
 
 export interface IWorkspaceSharingSettings {
   disabled?: boolean;
+}
+
+export interface IWorkspaceTemplateSettings {
+  allowMemberTemplates?: boolean;
+}
+
+export interface IWorkspaceSpaceSettings {
+  allowPersonal?: boolean;
 }
 
 export interface ICreateInvite {

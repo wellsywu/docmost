@@ -44,6 +44,7 @@ export interface ApiKeys {
 }
 
 export interface Attachments {
+  aiChatId: string | null;
   createdAt: Generated<Timestamp>;
   creatorId: string;
   deletedAt: Timestamp | null;
@@ -126,6 +127,50 @@ export interface Backlinks {
   workspaceId: string;
 }
 
+export interface BaseProperties {
+  createdAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+  id: Generated<string>;
+  isPrimary: Generated<boolean>;
+  name: string;
+  pageId: string;
+  pendingType: string | null;
+  pendingTypeOptions: Json | null;
+  pendingToken: string | null;
+  position: string;
+  schemaVersion: Generated<number>;
+  type: string;
+  typeOptions: Json | null;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
+export interface BaseRows {
+  cells: Generated<Json>;
+  createdAt: Generated<Timestamp>;
+  creatorId: string | null;
+  deletedAt: Timestamp | null;
+  id: Generated<string>;
+  lastUpdatedById: string | null;
+  pageId: string;
+  position: string;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
+export interface BaseViews {
+  config: Generated<Json>;
+  createdAt: Generated<Timestamp>;
+  creatorId: string | null;
+  id: Generated<string>;
+  name: string;
+  pageId: string;
+  position: string;
+  type: Generated<string>;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
+}
+
 export interface Billing {
   amount: Int8 | null;
   billingScheme: string | null;
@@ -175,6 +220,17 @@ export interface Comments {
   workspaceId: string;
 }
 
+export interface Favorites {
+  id: Generated<string>;
+  userId: string;
+  pageId: string | null;
+  spaceId: string | null;
+  templateId: string | null;
+  type: string;
+  workspaceId: string;
+  createdAt: Generated<Timestamp>;
+}
+
 export interface FileTasks {
   createdAt: Generated<Timestamp>;
   creatorId: string | null;
@@ -185,6 +241,8 @@ export interface FileTasks {
   filePath: string;
   fileSize: Int8 | null;
   id: Generated<string>;
+  metadata: Json | null;
+  pageId: string | null;
   source: string | null;
   spaceId: string | null;
   status: string | null;
@@ -200,7 +258,9 @@ export interface Groups {
   description: string | null;
   id: Generated<string>;
   isDefault: boolean;
+  isExternal: Generated<boolean>;
   name: string;
+  scimExternalId: string | null;
   updatedAt: Generated<Timestamp>;
   workspaceId: string;
 }
@@ -211,6 +271,25 @@ export interface GroupUsers {
   id: Generated<string>;
   updatedAt: Generated<Timestamp>;
   userId: string;
+}
+
+export interface PageTransclusionReferences {
+  createdAt: Generated<Timestamp>;
+  transclusionId: string;
+  referencePageId: string;
+  id: Generated<string>;
+  sourcePageId: string;
+  workspaceId: string;
+}
+
+export interface PageTransclusions {
+  content: Json;
+  createdAt: Generated<Timestamp>;
+  transclusionId: string;
+  id: Generated<string>;
+  pageId: string;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
 }
 
 export interface PageHistory {
@@ -241,6 +320,8 @@ export interface Pages {
   deletedById: string | null;
   icon: string | null;
   id: Generated<string>;
+  isBase: Generated<boolean>;
+  baseSchemaVersion: Generated<number>;
   isLocked: Generated<boolean>;
   lastUpdatedById: string | null;
   parentPageId: string | null;
@@ -288,6 +369,7 @@ export interface Spaces {
   deletedAt: Timestamp | null;
   description: string | null;
   id: Generated<string>;
+  isPersonal: Generated<boolean>;
   logo: string | null;
   name: string | null;
   settings: Json | null;
@@ -325,6 +407,7 @@ export interface Users {
   name: string | null;
   password: string | null;
   role: string | null;
+  scimExternalId: string | null;
   settings: Json | null;
   timezone: string | null;
   updatedAt: Generated<Timestamp>;
@@ -368,6 +451,7 @@ export interface Workspaces {
   enforceMfa: Generated<boolean | null>;
   enforceSso: Generated<boolean>;
   hostname: string | null;
+  isScimEnabled: Generated<boolean>;
   id: Generated<string>;
   licenseKey: string | null;
   logo: string | null;
@@ -389,11 +473,26 @@ export interface Notifications {
   pageId: string | null;
   spaceId: string | null;
   commentId: string | null;
+  pageVerificationId: string | null;
   data: Json | null;
   readAt: Timestamp | null;
   emailedAt: Timestamp | null;
   archivedAt: Timestamp | null;
   createdAt: Generated<Timestamp>;
+}
+
+export interface ScimTokens {
+  createdAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+  id: Generated<string>;
+  isEnabled: Generated<boolean>;
+  lastUsedAt: Timestamp | null;
+  name: string;
+  tokenHash: string;
+  tokenLastFour: string;
+  creatorId: string | null;
+  updatedAt: Generated<Timestamp>;
+  workspaceId: string;
 }
 
 export interface Watchers {
@@ -408,6 +507,15 @@ export interface Watchers {
   createdAt: Generated<Timestamp>;
 }
 
+export interface Labels {
+  id: Generated<string>;
+  name: string;
+  type: Generated<string>;
+  workspaceId: string;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
 export interface PageAccess {
   id: Generated<string>;
   pageId: string;
@@ -419,6 +527,13 @@ export interface PageAccess {
   updatedAt: Generated<Timestamp>;
 }
 
+export interface PageLabels {
+  id: Generated<string>;
+  pageId: string;
+  labelId: string;
+  createdAt: Generated<Timestamp>;
+}
+
 export interface PagePermissions {
   id: Generated<string>;
   pageAccessId: string;
@@ -428,6 +543,83 @@ export interface PagePermissions {
   addedById: string | null;
   createdAt: Generated<Timestamp>;
   updatedAt: Generated<Timestamp>;
+}
+
+export interface PageVerifications {
+  id: Generated<string>;
+  pageId: string;
+  workspaceId: string;
+  spaceId: string;
+  type: Generated<string>;
+  status: string | null;
+  mode: string | null;
+  periodAmount: number | null;
+  periodUnit: string | null;
+  verifiedAt: Timestamp | null;
+  verifiedById: string | null;
+  expiresAt: Timestamp | null;
+  requestedAt: Timestamp | null;
+  requestedById: string | null;
+  rejectedAt: Timestamp | null;
+  rejectedById: string | null;
+  rejectionComment: string | null;
+  data: Json | null;
+  creatorId: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
+export interface PageVerifiers {
+  id: Generated<string>;
+  pageVerificationId: string;
+  userId: string;
+  isPrimary: Generated<boolean>;
+  addedById: string | null;
+  createdAt: Generated<Timestamp>;
+}
+
+export interface Templates {
+  id: Generated<string>;
+  title: string | null;
+  description: string | null;
+  content: Json | null;
+  ydoc: Buffer | null;
+  icon: string | null;
+  spaceId: string | null;
+  workspaceId: string;
+  creatorId: string | null;
+  lastUpdatedById: string | null;
+  collaboratorIds: string[] | null;
+  textContent: string | null;
+  tsv: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+}
+
+export interface AiChats {
+  id: Generated<string>;
+  workspaceId: string;
+  creatorId: string;
+  title: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+}
+
+export interface AiChatMessages {
+  id: Generated<string>;
+  chatId: string;
+  workspaceId: string;
+  userId: string | null;
+  role: string;
+  content: string | null;
+  toolCalls: Json | null;
+  metadata: Json | null;
+  tsv: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
 }
 
 export interface UserSessions {
@@ -446,25 +638,39 @@ export interface UserSessions {
 }
 
 export interface DB {
+  aiChats: AiChats;
+  aiChatMessages: AiChatMessages;
   apiKeys: ApiKeys;
   attachments: Attachments;
   audit: Audit;
   authAccounts: AuthAccounts;
   authProviders: AuthProviders;
   backlinks: Backlinks;
+  baseProperties: BaseProperties;
+  baseRows: BaseRows;
+  baseViews: BaseViews;
   billing: Billing;
   comments: Comments;
+  favorites: Favorites;
   fileTasks: FileTasks;
   groups: Groups;
   groupUsers: GroupUsers;
+  labels: Labels;
   notifications: Notifications;
   pageAccess: PageAccess;
+  pageTransclusionReferences: PageTransclusionReferences;
+  pageTransclusions: PageTransclusions;
   pagePermissions: PagePermissions;
   pageHistory: PageHistory;
+  pageLabels: PageLabels;
+  pageVerifications: PageVerifications;
+  pageVerifiers: PageVerifiers;
   pages: Pages;
+  scimTokens: ScimTokens;
   shares: Shares;
   spaceMembers: SpaceMembers;
   spaces: Spaces;
+  templates: Templates;
   userMfa: UserMfa;
   users: Users;
   userSessions: UserSessions;

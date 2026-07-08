@@ -9,17 +9,28 @@ import { Placeholder } from "@tiptap/extension-placeholder";
 import { useAtom } from "jotai";
 import { readOnlyEditorAtom } from "@/features/editor/atoms/editor-atoms.ts";
 import { useEditorScroll } from "./hooks/use-editor-scroll";
+import { TransclusionLookupProvider } from "@/features/editor/components/transclusion/transclusion-lookup-context";
 
 interface PageEditorProps {
   title: string;
   content: any;
   pageId?: string;
+  printMode?: boolean;
+  /**
+   * When rendering inside a public share, pass the share's id (or key). Lookups
+   * for transclusion content then resolve against the share graph instead of
+   * the viewer's personal permissions, so a share never leaks source content
+   * that isn't itself shared.
+   */
+  shareId?: string;
 }
 
 export default function ReadonlyPageEditor({
   title,
   content,
   pageId,
+  printMode = false,
+  shareId,
 }: PageEditorProps) {
   const [, setReadOnlyEditor] = useAtom(readOnlyEditorAtom);
   const isComponentMounted = useRef(false);
@@ -39,8 +50,12 @@ export default function ReadonlyPageEditor({
   }, []);
 
   const extensions = useMemo(() => {
+    const excludedExtensions = new Set([
+      "uniqueID",
+      ...(printMode ? ["tableHeaderPin", "tableReadonlySort"] : []),
+    ]);
     const filteredExtensions = mainExtensions.filter(
-      (ext) => ext.name !== "uniqueID",
+      (ext) => !excludedExtensions.has(ext.name),
     );
 
     return [
@@ -50,7 +65,7 @@ export default function ReadonlyPageEditor({
         updateDocument: false,
       }),
     ];
-  }, []);
+  }, [printMode]);
 
   const titleExtensions = [
     Document.extend({
@@ -65,7 +80,7 @@ export default function ReadonlyPageEditor({
   ];
 
   return (
-    <>
+    <TransclusionLookupProvider shareId={shareId}>
       <div className="page-title">
         <EditorProvider
           editable={false}
@@ -95,6 +110,6 @@ export default function ReadonlyPageEditor({
         }}
       ></EditorProvider>
       <div style={{ paddingBottom: "20vh" }}></div>
-    </>
+    </TransclusionLookupProvider>
   );
 }
