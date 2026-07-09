@@ -21,14 +21,23 @@
 
 .ProseMirror {
   table {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
     margin: 0;
     table-layout: fixed;
     width: 100%;
 
     td,
     th {
-      border: 1px solid #ced4da;
+      /* Grid lines come from each cell's right/bottom border; the table's
+         own border draws the top/left edges. This (with border-collapse:
+         separate above) lets border-radius round the outer corners — a
+         collapsed table cannot be rounded. Last column / last row drop
+         their cell border to avoid doubling the table border (see below). */
+      border-right: 1px solid #ced4da;
+      border-bottom: 1px solid #ced4da;
       box-sizing: border-box;
       min-width: 1em;
       padding: 3px 5px;
@@ -80,6 +89,42 @@
       z-index: 2;
     }
   }
+}
+
+/* Rounded outer corners for editor tables. The table border draws the outer
+   frame (radius 8px); cell borders draw the inner grid. Drop the cell border
+   on the last column / last row so it doesn't double the table's own border,
+   then round the four corner cells (7px = table radius minus its 1px border)
+   so their backgrounds clip to match the frame. No overflow:hidden here, so
+   column-resize handles and sticky header pinning keep working. */
+.ProseMirror table tr:last-child td,
+.ProseMirror table tr:last-child th {
+  border-bottom: none;
+}
+
+.ProseMirror table tr td:last-child,
+.ProseMirror table tr th:last-child {
+  border-right: none;
+}
+
+.ProseMirror table tr:first-child th:first-child,
+.ProseMirror table tr:first-child td:first-child {
+  border-top-left-radius: 7px;
+}
+
+.ProseMirror table tr:first-child th:last-child,
+.ProseMirror table tr:first-child td:last-child {
+  border-top-right-radius: 7px;
+}
+
+.ProseMirror table tr:last-child td:first-child,
+.ProseMirror table tr:last-child th:first-child {
+  border-bottom-left-radius: 7px;
+}
+
+.ProseMirror table tr:last-child td:last-child,
+.ProseMirror table tr:last-child th:last-child {
+  border-bottom-right-radius: 7px;
 }
 
 /* Table cell background colors with dark mode support */
