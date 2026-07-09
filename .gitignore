@@ -43,3 +43,7 @@ lerna-debug.log*
 .nx/cache
 
 glm.bat
+
+docs/
+scripts/
+CLAUDE.md
