@@ -1,7 +1,8 @@
 import bytes from "bytes";
 import { castToBoolean } from "@/lib/utils.tsx";
 import { AvatarIconType } from "@/features/attachments/types/attachment.types.ts";
-import { sanitizeUrl } from "@docmost/editor-ext";
+// Deep import keeps the tiptap-heavy editor-ext barrel out of the entry chunk.
+import { sanitizeUrl } from "@docmost/editor-ext/src/lib/web-utils";
 
 declare global {
   interface Window {

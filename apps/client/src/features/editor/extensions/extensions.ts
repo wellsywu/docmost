@@ -93,17 +93,7 @@ import SubpagesView from "@/features/editor/components/subpages/subpages-view.ts
 import TransclusionView from "@/features/editor/components/transclusion/transclusion-view.tsx";
 import TransclusionReferenceView from "@/features/editor/components/transclusion/transclusion-reference-view.tsx";
 import { BaseEmbedView } from "@/features/editor/components/base-embed/base-embed-view.tsx";
-import { common, createLowlight } from "lowlight";
-import plaintext from "highlight.js/lib/languages/plaintext";
-import powershell from "highlight.js/lib/languages/powershell";
-import abap from "highlightjs-sap-abap";
-import elixir from "highlight.js/lib/languages/elixir";
-import erlang from "highlight.js/lib/languages/erlang";
-import dockerfile from "highlight.js/lib/languages/dockerfile";
-import clojure from "highlight.js/lib/languages/clojure";
-import fortran from "highlight.js/lib/languages/fortran";
-import haskell from "highlight.js/lib/languages/haskell";
-import scala from "highlight.js/lib/languages/scala";
+import { lowlight } from "@/features/editor/extensions/lowlight.ts";
 import mentionRenderItems from "@/features/editor/components/mention/mention-suggestion.ts";
 import { ReactNodeViewRenderer, ReactMarkViewRenderer } from "@tiptap/react";
 import MentionView from "@/features/editor/components/mention/mention-view.tsx";
@@ -115,18 +105,6 @@ import { countWords } from "alfaaz";
 import AutoJoiner from "@/features/editor/extensions/autojoiner.ts";
 import GlobalDragHandle from "@/features/editor/extensions/drag-handle.ts";
 import { CleanStyles } from "@/features/editor/extensions/clean-styles.ts";
-
-const lowlight = createLowlight(common);
-lowlight.register("mermaid", plaintext);
-lowlight.register("powershell", powershell);
-lowlight.register("abap", abap);
-lowlight.register("erlang", erlang);
-lowlight.register("elixir", elixir);
-lowlight.register("dockerfile", dockerfile);
-lowlight.register("clojure", clojure);
-lowlight.register("fortran", fortran);
-lowlight.register("haskell", haskell);
-lowlight.register("scala", scala);
 
 // @ts-ignore
 export const mainExtensions = [

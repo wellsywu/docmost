@@ -1,7 +1,6 @@
-import "katex/dist/katex.min.css";
-import katex from "katex";
 //import "katex/dist/contrib/mhchem.min.js";
 import { useEffect, useRef, useState } from "react";
+import { useKatex } from "./use-katex";
 import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import { Popover, Textarea } from "@mantine/core";
 import classes from "./math.module.css";
@@ -17,11 +16,13 @@ export default function MathInlineView(props: NodeViewProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const katex = useKatex();
 
   const renderMath = (
     katexString: string,
     container: HTMLDivElement | null,
   ) => {
+    if (!katex) return;
     try {
       katex.render(katexString, container);
       setError(null);
@@ -33,7 +34,7 @@ export default function MathInlineView(props: NodeViewProps) {
 
   useEffect(() => {
     renderMath(node.attrs.text, mathResultContainer.current);
-  }, [node.attrs.text]);
+  }, [node.attrs.text, katex]);
 
   useEffect(() => {
     if (isEditing) {
@@ -43,7 +44,7 @@ export default function MathInlineView(props: NodeViewProps) {
         updateAttributes({ text: preview.trim() });
       });
     }
-  }, [preview, isEditing]);
+  }, [preview, isEditing, katex]);
 
   useEffect(() => {
     const pos = getPos();

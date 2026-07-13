@@ -1,7 +1,8 @@
 // Source: https://github.com/mantinedev/mantine/blob/master/packages/@mantine/hooks/src/use-clipboard/use-clipboard.ts
 // polyfilled to support execCommand fallback
 import { useState } from "react";
-import { execCommandCopy } from "@docmost/editor-ext";
+// Deep import keeps the tiptap-heavy editor-ext barrel out of the entry chunk.
+import { execCommandCopy } from "@docmost/editor-ext/src/lib/web-utils";
 
 export type UseClipboardOptions = {
   timeout?: number;

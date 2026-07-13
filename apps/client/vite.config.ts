@@ -41,8 +41,23 @@ export default defineConfig(({ mode }) => {
           advancedChunks: {
             groups: [
               {
+                name: "vendor-react",
+                test: /[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom)[\\/]/,
+              },
+              {
+                // Deps shared by entry code and the editor. Split out first so
+                // they don't get pulled into vendor-editor, which would force
+                // the entry chunk to download the editor bundle at first paint.
+                name: "vendor-shared",
+                test: /[\\/]node_modules[\\/](uuid|fast-equals|use-sync-external-store|@floating-ui)[\\/]/,
+              },
+              {
                 name: "vendor-mantine",
                 test: /[\\/]node_modules[\\/]@mantine[\\/]/,
+              },
+              {
+                name: "vendor-editor",
+                test: /[\\/]node_modules[\\/](@tiptap|prosemirror-[^\\/]+|@hocuspocus|yjs|y-protocols|y-prosemirror|lib0)[\\/]/,
               },
             ],
           },

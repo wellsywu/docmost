@@ -21,6 +21,10 @@ import classes from "./code-block.module.css";
 import React from "react";
 import { Suspense } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  ensureCodeLanguage,
+  supportedCodeLanguages,
+} from "@/features/editor/extensions/lowlight.ts";
 
 const MermaidView = React.lazy(
   () => import("@/features/editor/components/code-block/mermaid-view.tsx"),
@@ -44,7 +48,7 @@ const CODE_FONT_SIZES = [12, 13, 14, 16];
 
 export default function CodeBlockView(props: NodeViewProps) {
   const { t } = useTranslation();
-  const { node, updateAttributes, extension, editor, getPos } = props;
+  const { node, updateAttributes, editor, getPos } = props;
   const { language, theme, fontSize } = node.attrs;
   const [languageValue, setLanguageValue] = useState<string | null>(
     language || null,
@@ -84,7 +88,16 @@ export default function CodeBlockView(props: NodeViewProps) {
     });
   }
 
-  const languages: string[] = extension.options.lowlight.listLanguages().sort();
+  useEffect(() => {
+    if (!language) return;
+    ensureCodeLanguage(language).then((registered) => {
+      if (registered && !editor.isDestroyed) {
+        editor.view.dispatch(editor.state.tr.setMeta("lowlightRefresh", true));
+      }
+    });
+  }, [language, editor]);
+
+  const languages: string[] = supportedCodeLanguages;
   const filteredLanguages = ["auto", ...languages].filter((item) =>
     item.toLowerCase().includes(languageSearch.toLowerCase().trim()),
   );

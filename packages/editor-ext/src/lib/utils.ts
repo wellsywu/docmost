@@ -3,7 +3,6 @@ import { EditorState, Selection, Transaction } from "@tiptap/pm/state";
 import { EditorView } from "@tiptap/pm/view";
 import { CellSelection, TableMap } from "@tiptap/pm/tables";
 import { Node, ResolvedPos } from "@tiptap/pm/model";
-import { sanitizeUrl as braintreeSanitizeUrl } from "@braintree/sanitize-url";
 import { customAlphabet } from "nanoid";
 
 export const isRectSelected = (rect: any) => (selection: CellSelection) => {
@@ -382,42 +381,12 @@ export function icon(name: string) {
   return `<span class="ProseMirror-icon ProseMirror-icon-${name}"></span>`;
 }
 
-export function sanitizeUrl(url: string | undefined): string {
-  if (!url) return "";
-
-  const sanitized = braintreeSanitizeUrl(url);
-
-  // Return empty string instead of "about:blank"
-  return sanitized === "about:blank" ? "" : sanitized;
-}
-
-export function isInternalFileUrl(url: string | undefined): boolean {
-  if (!url) return false;
-  const normalized = url.trim();
-  return normalized.startsWith("/api/files/") || normalized.startsWith("/files/");
-}
+export {
+  sanitizeUrl,
+  isInternalFileUrl,
+  copyToClipboard,
+  execCommandCopy,
+} from "./web-utils";
 
 const alphabet = "abcdefghijklmnopqrstuvwxyz";
 export const generateNodeId = customAlphabet(alphabet, 12);
-
-export function copyToClipboard(text: string): void {
-  if ("clipboard" in navigator) {
-    navigator.clipboard.writeText(text).catch(() => {
-      execCommandCopy(text);
-    });
-  } else {
-    execCommandCopy(text);
-  }
-}
-
-export function execCommandCopy(text: string): void {
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.style.position = "fixed";
-  textarea.style.left = "-9999px";
-  textarea.style.top = "-9999px";
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
-}

@@ -54,7 +54,10 @@ import {
 import { mobileSidebarAtom } from "@/components/layouts/global/hooks/atoms/sidebar-atom.ts";
 import { useToggleSidebar } from "@/components/layouts/global/hooks/hooks/use-toggle-sidebar.ts";
 import { searchSpotlight } from "@/features/search/constants";
-import TemplatePickerModal from "@/ee/template/components/template-picker-modal";
+// Lazy: the template picker chain pulls in the full editor bundle.
+const TemplatePickerModal = React.lazy(
+  () => import("@/ee/template/components/template-picker-modal"),
+);
 import { useHasFeature } from "@/ee/hooks/use-feature";
 import { useUpgradeLabel } from "@/ee/hooks/use-upgrade-label";
 import { Feature } from "@/ee/features";
@@ -406,11 +409,13 @@ function SpaceMenu({
 
       {hasTemplates && templatePickerOpened && (
         <ErrorBoundary fallbackRender={() => null}>
-          <TemplatePickerModal
-            opened={templatePickerOpened}
-            onClose={closeTemplatePicker}
-            initialSpaceId={spaceId}
-          />
+          <React.Suspense fallback={null}>
+            <TemplatePickerModal
+              opened={templatePickerOpened}
+              onClose={closeTemplatePicker}
+              initialSpaceId={spaceId}
+            />
+          </React.Suspense>
         </ErrorBoundary>
       )}
     </>

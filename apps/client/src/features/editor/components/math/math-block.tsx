@@ -1,7 +1,6 @@
-import "katex/dist/katex.min.css";
-import katex from "katex";
 //import "katex/dist/contrib/mhchem.min.js";
 import { useEffect, useRef, useState } from "react";
+import { useKatex } from "./use-katex";
 import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import { ActionIcon, Flex, Popover, Stack, Textarea } from "@mantine/core";
 import classes from "./math.module.css";
@@ -20,11 +19,13 @@ export default function MathBlockView(props: NodeViewProps) {
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [debouncedPreview] = useDebouncedValue(preview, 500);
+  const katex = useKatex();
 
   const renderMath = (
     katexString: string,
     container: HTMLDivElement | null,
   ) => {
+    if (!katex) return;
     try {
       katex.render(katexString, container!, {
         displayMode: true,
@@ -39,13 +40,13 @@ export default function MathBlockView(props: NodeViewProps) {
 
   useEffect(() => {
     renderMath(node.attrs.text, mathResultContainer.current);
-  }, [node.attrs.text]);
+  }, [node.attrs.text, katex]);
 
   useEffect(() => {
     if (isEditing) {
       renderMath(preview || "", mathPreviewContainer.current);
     }
-  }, [preview, isEditing]);
+  }, [preview, isEditing, katex]);
 
   useEffect(() => {
     if (debouncedPreview !== null) {

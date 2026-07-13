@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import { Editor } from "@tiptap/core";
+import type { Editor } from "@tiptap/core";
 import { PageEditMode } from "@/features/user/types/user.types.ts";
 
 export const pageEditorAtom = atom<Editor | null>(null);

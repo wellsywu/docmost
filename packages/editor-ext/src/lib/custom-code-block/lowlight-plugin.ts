@@ -139,6 +139,17 @@ export function LowlightPlugin({
           defaultLanguage,
         }),
       apply: (transaction, decorationSet, oldState, newState) => {
+        // Allows consumers to force re-highlighting after registering a
+        // lazily loaded language on the lowlight instance.
+        if (transaction.getMeta('lowlightRefresh')) {
+          return getDecorations({
+            doc: transaction.doc,
+            name,
+            lowlight,
+            defaultLanguage,
+          });
+        }
+
         const oldNodeName = oldState.selection.$head.parent.type.name;
         const newNodeName = newState.selection.$head.parent.type.name;
         const oldNodes = findChildren(
