@@ -7,18 +7,25 @@
 }
 
 .ProseMirror {
-  background-color: light-dark(
-    var(--mantine-color-white),
-    var(--mantine-color-dark-7)
+  background-color: var(
+    --prose-bg,
+    light-dark(var(--mantine-color-white), var(--mantine-color-dark-7))
   );
-  color: light-dark(
-    var(--mantine-color-default-color),
-    var(--mantine-color-white)
+  color: var(
+    --prose-text,
+    light-dark(var(--mantine-color-default-color), var(--mantine-color-white))
   );
-  font-size: var(--mantine-font-size-md);
-  line-height: var(--mantine-line-height-xl);
+  font-family: var(--prose-font, var(--mantine-font-family));
+  font-size: var(--prose-size, var(--mantine-font-size-md));
+  line-height: var(--prose-leading, var(--mantine-line-height-xl));
   font-weight: 400;
   width: 100%;
+
+  /* One radius / gap system for framed block-level boxes (code, mermaid,
+   * media, details, embeds). 8px matches the table and youtube frames so
+   * every heavy block agrees. Overridable per reading theme if needed. */
+  --prose-block-radius: 8px;
+  --prose-block-gap: var(--mantine-spacing-md);
 
   padding-left: 3rem;
   padding-right: 3rem;
@@ -61,6 +68,7 @@
   h1,
   h2,
   h3 {
+    color: var(--prose-heading, inherit);
     letter-spacing: -0.01em;
     line-height: 1.2;
     font-weight: 600;
@@ -91,25 +99,31 @@
   h4,
   h5,
   h6 {
+    color: var(--prose-heading, inherit);
     line-height: 1.1;
     margin-bottom: 10px;
   }
 
   code {
-    background-color: light-dark(
-      var(--mantine-color-gray-0),
-      var(--mantine-color-dark-8)
+    background-color: var(
+      --prose-inline-code-bg,
+      light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))
     );
-    color: #616161;
+    color: var(--prose-inline-code-text, #616161);
   }
 
   a {
-    color: light-dark(var(--mantine-color-dark-4), var(--mantine-color-dark-1));
+    color: var(
+      --prose-link,
+      light-dark(var(--mantine-color-dark-4), var(--mantine-color-dark-1))
+    );
     @mixin light {
-      border-bottom: 0.07em solid var(--mantine-color-dark-0);
+      border-bottom: 0.07em solid
+        var(--prose-link-border, var(--mantine-color-dark-0));
     }
     @mixin dark {
-      border-bottom: 0.07em solid var(--mantine-color-dark-2);
+      border-bottom: 0.07em solid
+        var(--prose-link-border, var(--mantine-color-dark-2));
     }
     font-weight: 500;
     text-decoration: none;
@@ -119,18 +133,21 @@
   blockquote {
     padding-left: 1rem;
     border-left: 3px solid
-      light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-4));
+      var(
+        --prose-quote-border,
+        light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-4))
+      );
+    color: var(--prose-quote-text, inherit);
     margin: 0;
   }
 
   hr {
     border: none;
-    @mixin light {
-      border-top: 1px solid var(--mantine-color-gray-4);
-    }
-    @mixin dark {
-      border-top: 1px solid var(--mantine-color-dark-4);
-    }
+    border-top: 1px solid
+      var(
+        --prose-border,
+        light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-4))
+      );
 
     &:hover {
       cursor: pointer;
@@ -138,7 +155,7 @@
   }
 
   hr.ProseMirror-selectednode {
-    border-top: 1px solid #68cef8;
+    border-top: 1px solid var(--prose-selection, #68cef8);
   }
 
   &[contenteditable="false"] hr.ProseMirror-selectednode {
@@ -146,7 +163,7 @@
   }
 
   .ProseMirror-selectednode {
-    outline: 2px solid #70cff8;
+    outline: 2px solid var(--prose-selection, #70cff8);
   }
 
   &[contenteditable="false"] .ProseMirror-selectednode {
@@ -154,8 +171,8 @@
   }
 
   & > .react-renderer {
-    margin-top: var(--mantine-spacing-sm);
-    margin-bottom: var(--mantine-spacing-sm);
+    margin-top: var(--prose-block-gap);
+    margin-bottom: var(--prose-block-gap);
 
     &:first-child {
       margin-top: 0;
@@ -164,14 +181,17 @@
     &:last-child {
       margin-bottom: 0;
     }
-
   }
 
-  .react-renderer.node-callout div[style*="white-space: inherit;"] > :first-child {
+  .react-renderer.node-callout
+    div[style*="white-space: inherit;"]
+    > :first-child {
     margin-top: 0;
   }
 
-  .react-renderer.node-callout div[style*="white-space: inherit;"] > :last-child {
+  .react-renderer.node-callout
+    div[style*="white-space: inherit;"]
+    > :last-child {
     margin-bottom: 0;
   }
 
@@ -189,8 +209,8 @@
   }
 
   .comment-mark {
-    background: rgba(255, 215, 0, 0.14);
-    border-bottom: 2px solid rgb(166, 158, 12);
+    background: var(--prose-comment-bg, rgba(255, 215, 0, 0.14));
+    border-bottom: 2px solid var(--prose-comment-border, rgb(166, 158, 12));
 
     &.resolved {
       background: none;
@@ -204,10 +224,10 @@
 
   @keyframes flash-highlight {
     0% {
-      background-color: #ff4d4d;
+      background-color: var(--prose-flash, #ff4d4d);
     }
     100% {
-      background-color: rgba(255, 215, 0, 0.14);
+      background-color: var(--prose-comment-bg, rgba(255, 215, 0, 0.14));
     }
   }
 
@@ -231,7 +251,6 @@
     margin-left: auto;
     margin-right: auto;
   }
-
 }
 
 .ProseMirror > h1,
@@ -240,11 +259,9 @@
 .ProseMirror > h4,
 .ProseMirror > h5,
 .ProseMirror > h6 {
-
   > .link-btn {
     cursor: pointer;
     position: relative;
-
   }
 
   > .link-btn > .link-btn-content {

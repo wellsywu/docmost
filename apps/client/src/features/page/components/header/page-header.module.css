@@ -1,6 +1,9 @@
 .header {
   height: 45px;
-  background-color: var(--mantine-color-body);
+  /* Inherit the reading surface from the page wrapper (set in page.tsx) so the
+   * fixed breadcrumb bar matches the article background and switches with the
+   * theme. Falls back to the app body when no reading theme is present. */
+  background-color: var(--prose-bg, var(--mantine-color-body));
   padding-left: var(--mantine-spacing-md);
   padding-right: var(--mantine-spacing-md);
   position: fixed;

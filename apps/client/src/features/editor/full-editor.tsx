@@ -27,6 +27,7 @@ import { DeletedPageBanner } from "@/features/page/trash/components/deleted-page
 import clsx from "clsx";
 import { currentPageEditModeAtom } from "@/features/editor/atoms/editor-atoms.ts";
 import { EmptyPageGetStarted } from "@/features/editor/components/empty-page/empty-page-get-started";
+import { getReadingPreferences } from "@/features/theming/reading-preferences.ts";
 
 const MemoizedTitleEditor = React.memo(TitleEditor);
 const MemoizedPageEditor = React.memo(PageEditor);
@@ -75,6 +76,7 @@ export function FullEditor({
   );
   const userPageEditMode =
     user.settings?.preferences?.pageEditMode ?? PageEditMode.Edit;
+  const readingPreferences = getReadingPreferences(user);
   const isEditMode = currentPageEditMode === PageEditMode.Edit;
 
   // Apply the user's saved preference only once on initial load, not on every
@@ -92,6 +94,10 @@ export function FullEditor({
       size={!fullPageWidth && 900}
       className={classes.editor}
       style={{ display: "flex", flexDirection: "column" }}
+      data-reading-theme={readingPreferences.theme}
+      data-reading-font={readingPreferences.font}
+      data-reading-size={readingPreferences.size}
+      data-reading-code-theme={readingPreferences.codeTheme}
     >
       {editorToolbarEnabled && editable && isEditMode && (
         <MemoizedFixedToolbar />

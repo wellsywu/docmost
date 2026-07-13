@@ -47,3 +47,6 @@ glm.bat
 docs/
 scripts/
 CLAUDE.md
+deploy/
+.claude/
+.deploy/

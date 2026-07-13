@@ -40,6 +40,37 @@ export const CustomCodeBlock = CodeBlock.extend<CodeBlockLowlightOptions>({
     };
   },
 
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      // Per-block color theme; null follows the global reading theme.
+      theme: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-theme'),
+        renderHTML: (attributes) => {
+          if (!attributes.theme) {
+            return {};
+          }
+          return { 'data-theme': attributes.theme };
+        },
+      },
+      // Per-block font size in px; null follows the editor default.
+      fontSize: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute('data-font-size');
+          return value ? parseInt(value, 10) : null;
+        },
+        renderHTML: (attributes) => {
+          if (!attributes.fontSize) {
+            return {};
+          }
+          return { 'data-font-size': attributes.fontSize };
+        },
+      },
+    };
+  },
+
   addKeyboardShortcuts() {
     const isMermaid = (node: any) =>
       node?.type === this.type && node.attrs.language === 'mermaid';

@@ -1,4 +1,10 @@
 import { IWorkspace } from "@/features/workspace/types/workspace.types";
+import type {
+  ReadingCodeTheme,
+  ReadingFont,
+  ReadingSize,
+  ReadingTheme,
+} from "@/features/theming/manifest.ts";
 
 export interface IUser {
   id: string;
@@ -26,6 +32,10 @@ export interface IUser {
   notificationCommentUserMention: boolean; // used for update
   notificationCommentCreated: boolean; // used for update
   notificationCommentResolved: boolean; // used for update
+  readingTheme: ReadingTheme; // used for update
+  readingFont: ReadingFont; // used for update
+  readingSize: ReadingSize; // used for update
+  readingCodeTheme: ReadingCodeTheme; // used for update
   hasGeneratedPassword?: boolean;
 }
 
@@ -39,6 +49,10 @@ export interface IUserSettings {
     fullPageWidth: boolean;
     pageEditMode: string;
     editorToolbar: boolean;
+    readingTheme?: ReadingTheme;
+    readingFont?: ReadingFont;
+    readingSize?: ReadingSize;
+    readingCodeTheme?: ReadingCodeTheme;
   };
   notifications?: {
     "page.updated"?: boolean;

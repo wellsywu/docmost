@@ -1,24 +1,146 @@
+/* Yuque-style code block chrome: a header toolbar (collapse toggle on the
+ * left; language + copy action on the right) sitting above a line-numbered
+ * code body. Colors ride the reading-theme vars so every theme keeps working. */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 2px 8px 2px 6px;
+  border-bottom: 1px solid
+    var(
+      --prose-code-border,
+      light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5))
+    );
+
+  @media print {
+    display: none;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.collapseButton svg {
+  transition: transform 0.15s ease;
+}
+
+.collapseButton[data-collapsed] svg {
+  transform: rotate(-90deg);
+}
+
+.headerDivider {
+  width: 1px;
+  height: 14px;
+  margin: 0 4px;
+  background-color: var(
+    --prose-code-border,
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5))
+  );
+}
+
 .selectInput {
-    height: 25px;
-    min-height: 25px;
+  height: 24px;
+  min-height: 24px;
+  font-size: var(--mantine-font-size-xs);
+  text-align: right;
+  color: var(--mantine-color-dimmed);
+}
+
+/* Language dropdown trigger: looks like the other quiet header controls but
+ * is a plain button, not an editable input. */
+.languageButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 4px;
+  border-radius: var(--mantine-radius-sm);
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  white-space: nowrap;
+}
+
+.languageButton:hover {
+  background-color: light-dark(
+    var(--mantine-color-gray-1),
+    var(--mantine-color-dark-5)
+  );
+}
+
+.languageOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--mantine-font-size-xs);
+}
+
+.actionButton {
+  color: var(--mantine-color-dimmed);
+  font-weight: 400;
+}
+
+/* Code body: line-number gutter + scrollable code area. */
+.content {
+  display: flex;
+  align-items: stretch;
+}
+
+.content[hidden],
+.content[data-collapsed] {
+  display: none;
+}
+
+.lineNumbers {
+  flex: none;
+  min-width: 24px;
+  padding: var(--mantine-spacing-xs) 4px var(--mantine-spacing-xs) 12px;
+  text-align: right;
+  user-select: none;
+  font-family: "JetBrainsMono", var(--mantine-font-family-monospace);
+  /* Same source as the code area so per-block font size keeps the gutter
+   * rows aligned 1:1 with code lines. */
+  font-size: var(--code-font-size, var(--mantine-font-size-sm));
+  line-height: 1.6;
+  color: var(
+    --prose-code-text,
+    light-dark(var(--mantine-color-gray-9), var(--mantine-color-dark-1))
+  );
+  opacity: 0.4;
+}
+
+.lineNumbers span {
+  display: block;
 }
 
 .error {
-    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-7));
-    background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-gray-8));
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-7));
+  background-color: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-gray-8)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--mantine-spacing-sm);
+  border-radius: calc(var(--prose-block-radius, 8px) - 2px);
 }
 
+/* Rendered diagram frame. Sits inside the bordered .codeBlock card; the code
+ * body above it is hidden while the diagram is shown, so it just needs its
+ * own padding on the shared surface. */
 .mermaid {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.menuGroup {
-    @media print {
-        display: none;
-    }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--mantine-spacing-md);
+  overflow-x: auto;
+  background-color: var(
+    --prose-code-bg,
+    light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))
+  );
 }

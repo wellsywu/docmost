@@ -1,0 +1,453 @@
+/* Reading theme registry.
+ *
+ * The `default` theme lives on the bare [data-reading-theme] selector and keeps
+ * the upstream Mantine appearance (every token falls back to the editor's
+ * original value). Each named theme below carries a FULL palette — surface,
+ * text, heading, link, border, quote, table, inline code, code block and hljs
+ * syntax colors — merged into light-dark() so the app's light/dark scheme still
+ * drives the ground. Code color is part of the theme; the code-theme overlays
+ * (github/dracula) are an optional override applied on top when chosen.
+ *
+ * Syntax variables: the six base ones (--hljs-comment/keyword/variable/string/
+ * number/title) are required; the finer ones (--hljs-tag/attr/builtin/function/
+ * class/meta) are optional and fall back along the chain declared in code.css.
+ * Palette sources: github ← highlight.js github.css + github-dark.css;
+ * dracula ← draculatheme.com spec (light branch = official Alucard); cursor ←
+ * VS Code Dark+/Light+ defaults; tokyo ← Tokyo Night VS Code theme (storm
+ * light variant); copilot ← GitHub Primer (github.com current); notion ←
+ * Tomorrow / Tomorrow Night (the palette Notion's highlighter uses). */
+
+[data-reading-theme] {
+  --prose-bg: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-7)
+  );
+  --prose-text: light-dark(
+    var(--mantine-color-default-color),
+    var(--mantine-color-white)
+  );
+  --prose-accent: var(--mantine-color-blue-5);
+  --prose-link: light-dark(
+    var(--mantine-color-dark-4),
+    var(--mantine-color-dark-1)
+  );
+  --prose-link-border: light-dark(
+    var(--mantine-color-dark-0),
+    var(--mantine-color-dark-2)
+  );
+  --prose-quote-border: light-dark(
+    var(--mantine-color-gray-4),
+    var(--mantine-color-dark-4)
+  );
+  --prose-table-border: light-dark(#ced4da, var(--mantine-color-dark-4));
+  --prose-table-header: light-dark(
+    var(--mantine-color-gray-1),
+    var(--mantine-color-dark-5)
+  );
+  --prose-table-dnd-bg: light-dark(
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.1)
+  );
+  --prose-table-selection: rgba(200, 200, 255, 0.4);
+  --prose-comment-bg: rgba(255, 215, 0, 0.14);
+  --prose-comment-border: rgb(166, 158, 12);
+  --prose-flash: #ff4d4d;
+}
+
+[data-reading-theme="sepia"] {
+  --prose-bg: light-dark(#f4ecd8, #2a2620);
+  --prose-text: light-dark(#5b4636, #d8c9a8);
+  --prose-heading: light-dark(#43301f, #ecdcb8);
+  --prose-accent: light-dark(#9a6a3a, #d9a566);
+  --prose-link: light-dark(#8a5a2a, #e0b070);
+  --prose-link-border: light-dark(#d8c9a8, #453d31);
+  --prose-border: light-dark(#d8c9a8, #453d31);
+  --prose-table-border: light-dark(#d8c9a8, #453d31);
+  --prose-quote-border: light-dark(#cbb98f, #5a4d3a);
+  --prose-quote-text: light-dark(#7d6a52, #b8a685);
+  --prose-table-header: light-dark(#eadfc4, #332d24);
+  --prose-inline-code-bg: light-dark(#eadfc4, #362f26);
+  --prose-inline-code-text: light-dark(#96521f, #e0a96a);
+  --prose-code-bg: light-dark(#efe6cf, #221e18);
+  --prose-code-surface: light-dark(#efe6cf, #221e18);
+  --prose-code-text: light-dark(#4d3b2b, #d8c9a8);
+  --hljs-comment: light-dark(#a3906c, #8a7a5c);
+  --hljs-keyword: light-dark(#8a3b2a, #e0996a);
+  --hljs-variable: light-dark(#6a4a2a, #cbb896);
+  --hljs-attr: light-dark(#3a6a6a, #7ab0a0);
+  --hljs-string: light-dark(#7a5a1f, #c9b45c);
+  --hljs-number: light-dark(#3a6a6a, #7ab0a0);
+  --hljs-title: light-dark(#8a5a2a, #e0b070);
+}
+
+[data-reading-theme="contrast"] {
+  --prose-bg: light-dark(#ffffff, #000000);
+  --prose-text: light-dark(#000000, #ffffff);
+  --prose-heading: light-dark(#000000, #ffffff);
+  --prose-accent: light-dark(#0b3d91, #ffd400);
+  --prose-link: light-dark(#0b3d91, #8ad7ff);
+  --prose-link-border: light-dark(#000000, #ffffff);
+  --prose-border: light-dark(#000000, #ffffff);
+  --prose-table-border: light-dark(#000000, #ffffff);
+  --prose-quote-border: light-dark(#000000, #ffffff);
+  --prose-quote-text: light-dark(#000000, #ffffff);
+  --prose-table-header: light-dark(#eeeeee, #111111);
+  --prose-inline-code-bg: light-dark(#eeeeee, #111111);
+  --prose-inline-code-text: light-dark(#000000, #ffe066);
+  --prose-code-bg: light-dark(#f4f4f4, #0a0a0a);
+  --prose-code-surface: light-dark(#f4f4f4, #0a0a0a);
+  --prose-code-text: light-dark(#000000, #ffffff);
+  --hljs-comment: light-dark(#555555, #c7c7c7);
+  --hljs-keyword: light-dark(#7a00cc, #ffd400);
+  --hljs-variable: light-dark(#7a00cc, #ffd400);
+  --hljs-attr: light-dark(#003bb3, #8ad7ff);
+  --hljs-string: light-dark(#a80000, #8cff8c);
+  --hljs-number: light-dark(#003bb3, #8ad7ff);
+  --hljs-title: light-dark(#005f5f, #ff9cf0);
+}
+
+[data-reading-theme="notion"] {
+  --prose-bg: light-dark(#ffffff, #191919);
+  --prose-text: light-dark(#37352f, #d4d4d4);
+  --prose-heading: light-dark(#37352f, #ededed);
+  --prose-accent: light-dark(#2383e2, #529cca);
+  --prose-link: light-dark(#2383e2, #529cca);
+  --prose-link-border: light-dark(#e7e6e2, #2f2f2f);
+  --prose-border: light-dark(#e7e6e2, #2f2f2f);
+  --prose-table-border: light-dark(#e7e6e2, #2f2f2f);
+  --prose-quote-border: light-dark(#37352f, #5a5a5a);
+  --prose-quote-text: light-dark(#37352f, #c4c4c4);
+  --prose-table-header: light-dark(#f7f6f3, #232323);
+  --prose-inline-code-bg: light-dark(#f1f0ee, #2b2b2b);
+  --prose-inline-code-text: light-dark(#eb5757, #ff7369);
+  --prose-code-bg: light-dark(#f7f6f3, #1e1e1e);
+  --prose-code-surface: light-dark(#f7f6f3, #1e1e1e);
+  --prose-code-text: light-dark(#37352f, #d4d4d4);
+  --hljs-comment: light-dark(#8e908c, #969896);
+  --hljs-keyword: light-dark(#8959a8, #b294bb);
+  --hljs-tag: light-dark(#c82829, #cc6666);
+  --hljs-variable: light-dark(#c82829, #cc6666);
+  --hljs-attr: light-dark(#f5871f, #de935f);
+  --hljs-string: light-dark(#718c00, #b5bd68);
+  --hljs-number: light-dark(#f5871f, #de935f);
+  --hljs-builtin: light-dark(#3e999f, #8abeb7);
+  --hljs-class: light-dark(#3e999f, #8abeb7);
+  --hljs-title: light-dark(#4271ae, #81a2be);
+}
+
+[data-reading-theme="cursor"] {
+  --prose-bg: light-dark(#ffffff, #141414);
+  --prose-text: light-dark(#1e1e1e, #d4d4d4);
+  --prose-heading: light-dark(#000000, #ffffff);
+  --prose-accent: light-dark(#0066cc, #5b9bff);
+  --prose-link: light-dark(#0066cc, #4daafc);
+  --prose-link-border: light-dark(#e2e2e2, #2a2a2a);
+  --prose-border: light-dark(#e2e2e2, #2a2a2a);
+  --prose-table-border: light-dark(#e2e2e2, #2a2a2a);
+  --prose-quote-border: light-dark(#cfcfcf, #3a3a3a);
+  --prose-quote-text: light-dark(#454545, #a0a0a0);
+  --prose-table-header: light-dark(#f3f3f3, #1c1c1c);
+  --prose-inline-code-bg: light-dark(#f3f3f3, #1f1f1f);
+  --prose-inline-code-text: light-dark(#a31515, #ce9178);
+  --prose-code-bg: light-dark(#f6f6f6, #0f0f0f);
+  --prose-code-surface: light-dark(#f6f6f6, #0f0f0f);
+  --prose-code-text: light-dark(#1e1e1e, #d4d4d4);
+  --hljs-comment: light-dark(#008000, #6a9955);
+  --hljs-keyword: light-dark(#0000ff, #569cd6);
+  --hljs-tag: light-dark(#800000, #569cd6);
+  --hljs-variable: light-dark(#001080, #9cdcfe);
+  --hljs-attr: light-dark(#0451a5, #9cdcfe);
+  --hljs-string: light-dark(#a31515, #ce9178);
+  --hljs-number: light-dark(#098658, #b5cea8);
+  --hljs-builtin: light-dark(#267f99, #4ec9b0);
+  --hljs-class: light-dark(#267f99, #4ec9b0);
+  --hljs-title: light-dark(#795e26, #dcdcaa);
+}
+
+[data-reading-theme="copilot"] {
+  --prose-bg: light-dark(#ffffff, #0d1117);
+  --prose-text: light-dark(#1f2328, #c9d1d9);
+  --prose-heading: light-dark(#1f2328, #e6edf3);
+  --prose-accent: light-dark(#0969da, #58a6ff);
+  --prose-link: light-dark(#0969da, #58a6ff);
+  --prose-link-border: light-dark(#d0d7de, #30363d);
+  --prose-border: light-dark(#d0d7de, #30363d);
+  --prose-table-border: light-dark(#d0d7de, #30363d);
+  --prose-quote-border: light-dark(#d0d7de, #3b434b);
+  --prose-quote-text: light-dark(#59636e, #8b949e);
+  --prose-table-header: light-dark(#f6f8fa, #161b22);
+  --prose-inline-code-bg: light-dark(#eff1f3, #161b22);
+  --prose-inline-code-text: light-dark(#0550ae, #a5d6ff);
+  --prose-code-bg: light-dark(#f6f8fa, #161b22);
+  --prose-code-surface: light-dark(#f6f8fa, #161b22);
+  --prose-code-text: light-dark(#1f2328, #c9d1d9);
+  --hljs-comment: light-dark(#6e7781, #8b949e);
+  --hljs-keyword: light-dark(#cf222e, #ff7b72);
+  --hljs-tag: light-dark(#116329, #7ee787);
+  --hljs-variable: light-dark(#953800, #ffa657);
+  --hljs-attr: light-dark(#0550ae, #79c0ff);
+  --hljs-string: light-dark(#0a3069, #a5d6ff);
+  --hljs-number: light-dark(#0550ae, #79c0ff);
+  --hljs-builtin: light-dark(#953800, #ffa657);
+  --hljs-title: light-dark(#8250df, #d2a8ff);
+}
+
+[data-reading-theme="tokyo"] {
+  --prose-bg: light-dark(#e1e2e7, #1a1b26);
+  --prose-text: light-dark(#343b58, #a9b1d6);
+  --prose-heading: light-dark(#2e3244, #c0caf5);
+  --prose-accent: light-dark(#34548a, #7aa2f7);
+  --prose-link: light-dark(#34548a, #7aa2f7);
+  --prose-link-border: light-dark(#b6b7bf, #2f3549);
+  --prose-border: light-dark(#b6b7bf, #2f3549);
+  --prose-table-border: light-dark(#b6b7bf, #2f3549);
+  --prose-quote-border: light-dark(#a1a1aa, #3b4261);
+  --prose-quote-text: light-dark(#565a6e, #9aa5ce);
+  --prose-table-header: light-dark(#d3d4da, #222434);
+  --prose-inline-code-bg: light-dark(#cdced4, #24283b);
+  --prose-inline-code-text: light-dark(#166775, #7dcfff);
+  --prose-code-bg: light-dark(#d9dae0, #16161e);
+  --prose-code-surface: light-dark(#d9dae0, #16161e);
+  --prose-code-text: light-dark(#343b58, #a9b1d6);
+  --hljs-comment: light-dark(#9699a3, #565f89);
+  --hljs-keyword: light-dark(#5a4a78, #bb9af7);
+  --hljs-tag: light-dark(#8c4351, #f7768e);
+  --hljs-variable: light-dark(#343b58, #c0caf5);
+  --hljs-attr: light-dark(#0f4b6e, #7dcfff);
+  --hljs-string: light-dark(#485e30, #9ece6a);
+  --hljs-number: light-dark(#965027, #ff9e64);
+  --hljs-builtin: light-dark(#166775, #2ac3de);
+  --hljs-class: light-dark(#166775, #2ac3de);
+  --hljs-meta: light-dark(#9699a3, #565f89);
+  --hljs-title: light-dark(#34548a, #7aa2f7);
+}
+
+[data-reading-theme="feishu"] {
+  --prose-bg: light-dark(#ffffff, #202124);
+  --prose-text: light-dark(#1f2329, #ffffff);
+  --prose-heading: light-dark(#1f2329, #ffffff);
+  --prose-accent: light-dark(#1456f0, #5b8dff);
+  --prose-link: light-dark(#1456f0, #5b8dff);
+  --prose-link-border: light-dark(#dee0e3, #3c4043);
+  --prose-border: light-dark(#dee0e3, #3c4043);
+  --prose-table-border: light-dark(#dee0e3, #3c4043);
+  --prose-quote-border: light-dark(#d0d3d6, #3c4043);
+  --prose-quote-text: light-dark(#646a73, #9aa0a6);
+  --prose-table-header: light-dark(#f5f6f7, #2b2c30);
+  --prose-inline-code-bg: light-dark(#f5f6f7, #2b2c30);
+  --prose-inline-code-text: light-dark(#0f45c2, #7fa7ff);
+  --prose-code-bg: light-dark(#f8f9fa, #18191b);
+  --prose-code-surface: light-dark(#f8f9fa, #18191b);
+  --prose-code-text: light-dark(#1f2329, #e8eaed);
+  --hljs-comment: light-dark(#8f959e, #80868b);
+  --hljs-keyword: light-dark(#7a3ce0, #b39cff);
+  --hljs-tag: light-dark(#d83931, #ff7873);
+  --hljs-variable: light-dark(#1f2329, #e8eaed);
+  --hljs-attr: light-dark(#1456f0, #7fa7ff);
+  --hljs-string: light-dark(#0f8a5f, #6fd9a8);
+  --hljs-number: light-dark(#1456f0, #7fa7ff);
+  --hljs-title: light-dark(#c2410c, #ffab70);
+}
+
+[data-reading-font="sans"] {
+  --prose-font: var(--mantine-font-family);
+}
+
+[data-reading-font="serif"] {
+  --prose-font: Georgia, "Noto Serif CJK SC", "Songti SC", serif;
+}
+
+[data-reading-font="grotesk"] {
+  --prose-font: "Avenir Next", "Noto Sans CJK SC", "PingFang SC", sans-serif;
+}
+
+[data-reading-size="compact"] {
+  --prose-size: 0.9375rem;
+  --prose-leading: 1.6;
+}
+
+[data-reading-size="standard"] {
+  --prose-size: 1rem;
+  --prose-leading: var(--mantine-line-height-xl);
+}
+
+[data-reading-size="large"] {
+  --prose-size: 1.125rem;
+  --prose-leading: 1.8;
+}
+
+/* Code-theme overlays. `auto` (the default) has no block, so code follows the
+ * reading theme above. Choosing github/dracula overrides the code surface and
+ * syntax colors on top of whichever reading theme is active. Both overlays are
+ * scheme-aware via light-dark(): a light app scheme always yields a light code
+ * block, a dark scheme a dark one (Dracula's light branch is its official
+ * Alucard palette).
+ *
+ * Each palette also matches `.codeBlock[data-code-theme=...]` — the per-block
+ * theme picked on an individual code block (codeBlock node `theme` attribute).
+ * Custom properties resolve from the nearest ancestor, so a block-level choice
+ * automatically wins over the global reading/code theme.
+ *
+ * Keep these hljs values identical to the matching reading-theme block above —
+ * the duplication is deliberate (cascade order prevents sharing one rule). */
+[data-reading-code-theme="github"],
+.codeBlock[data-code-theme="github"] {
+  --prose-code-bg: light-dark(#f6f8fa, #161b22);
+  --prose-code-surface: light-dark(#f6f8fa, #161b22);
+  --prose-code-text: light-dark(#24292f, #e6edf3);
+  --prose-inline-code-bg: light-dark(#eff1f3, #2d333b);
+  --prose-inline-code-text: light-dark(#24292f, #e6edf3);
+  --hljs-comment: light-dark(#6a737d, #8b949e);
+  --hljs-keyword: light-dark(#d73a49, #ff7b72);
+  --hljs-tag: light-dark(#22863a, #7ee787);
+  --hljs-variable: light-dark(#005cc5, #79c0ff);
+  --hljs-attr: light-dark(#005cc5, #79c0ff);
+  --hljs-string: light-dark(#032f62, #a5d6ff);
+  --hljs-number: light-dark(#005cc5, #79c0ff);
+  --hljs-builtin: light-dark(#e36209, #ffa657);
+  --hljs-title: light-dark(#6f42c1, #d2a8ff);
+}
+
+[data-reading-code-theme="dracula"],
+.codeBlock[data-code-theme="dracula"] {
+  --prose-code-bg: light-dark(#fffbeb, #282a36);
+  --prose-code-surface: light-dark(#fffbeb, #282a36);
+  --prose-code-text: light-dark(#1f1f1f, #f8f8f2);
+  --prose-inline-code-bg: light-dark(#f3eecf, #343746);
+  --prose-inline-code-text: light-dark(#1f1f1f, #f8f8f2);
+  --hljs-comment: light-dark(#6c664b, #6272a4);
+  --hljs-keyword: light-dark(#a3144d, #ff79c6);
+  --hljs-tag: light-dark(#a3144d, #ff79c6);
+  --hljs-variable: light-dark(#1f1f1f, #f8f8f2);
+  --hljs-attr: light-dark(#14710a, #50fa7b);
+  --hljs-string: light-dark(#846e15, #f1fa8c);
+  --hljs-number: light-dark(#644ac9, #bd93f9);
+  --hljs-builtin: light-dark(#036a96, #8be9fd);
+  --hljs-class: light-dark(#036a96, #8be9fd);
+  --hljs-title: light-dark(#14710a, #50fa7b);
+}
+
+[data-reading-code-theme="cursor"],
+.codeBlock[data-code-theme="cursor"] {
+  --prose-code-bg: light-dark(#f6f6f6, #0f0f0f);
+  --prose-code-surface: light-dark(#f6f6f6, #0f0f0f);
+  --prose-code-text: light-dark(#1e1e1e, #d4d4d4);
+  --prose-inline-code-bg: light-dark(#f3f3f3, #1f1f1f);
+  --prose-inline-code-text: light-dark(#a31515, #ce9178);
+  --hljs-comment: light-dark(#008000, #6a9955);
+  --hljs-keyword: light-dark(#0000ff, #569cd6);
+  --hljs-tag: light-dark(#800000, #569cd6);
+  --hljs-variable: light-dark(#001080, #9cdcfe);
+  --hljs-attr: light-dark(#0451a5, #9cdcfe);
+  --hljs-string: light-dark(#a31515, #ce9178);
+  --hljs-number: light-dark(#098658, #b5cea8);
+  --hljs-builtin: light-dark(#267f99, #4ec9b0);
+  --hljs-class: light-dark(#267f99, #4ec9b0);
+  --hljs-title: light-dark(#795e26, #dcdcaa);
+}
+
+[data-reading-code-theme="copilot"],
+.codeBlock[data-code-theme="copilot"] {
+  --prose-code-bg: light-dark(#f6f8fa, #161b22);
+  --prose-code-surface: light-dark(#f6f8fa, #161b22);
+  --prose-code-text: light-dark(#1f2328, #c9d1d9);
+  --prose-inline-code-bg: light-dark(#eff1f3, #161b22);
+  --prose-inline-code-text: light-dark(#0550ae, #a5d6ff);
+  --hljs-comment: light-dark(#6e7781, #8b949e);
+  --hljs-keyword: light-dark(#cf222e, #ff7b72);
+  --hljs-tag: light-dark(#116329, #7ee787);
+  --hljs-variable: light-dark(#953800, #ffa657);
+  --hljs-attr: light-dark(#0550ae, #79c0ff);
+  --hljs-string: light-dark(#0a3069, #a5d6ff);
+  --hljs-number: light-dark(#0550ae, #79c0ff);
+  --hljs-builtin: light-dark(#953800, #ffa657);
+  --hljs-title: light-dark(#8250df, #d2a8ff);
+}
+
+[data-reading-code-theme="tokyo"],
+.codeBlock[data-code-theme="tokyo"] {
+  --prose-code-bg: light-dark(#d9dae0, #16161e);
+  --prose-code-surface: light-dark(#d9dae0, #16161e);
+  --prose-code-text: light-dark(#343b58, #a9b1d6);
+  --prose-inline-code-bg: light-dark(#cdced4, #24283b);
+  --prose-inline-code-text: light-dark(#166775, #7dcfff);
+  --hljs-comment: light-dark(#9699a3, #565f89);
+  --hljs-keyword: light-dark(#5a4a78, #bb9af7);
+  --hljs-tag: light-dark(#8c4351, #f7768e);
+  --hljs-variable: light-dark(#343b58, #c0caf5);
+  --hljs-attr: light-dark(#0f4b6e, #7dcfff);
+  --hljs-string: light-dark(#485e30, #9ece6a);
+  --hljs-number: light-dark(#965027, #ff9e64);
+  --hljs-builtin: light-dark(#166775, #2ac3de);
+  --hljs-class: light-dark(#166775, #2ac3de);
+  --hljs-meta: light-dark(#9699a3, #565f89);
+  --hljs-title: light-dark(#34548a, #7aa2f7);
+}
+
+[data-reading-code-theme="notion"],
+.codeBlock[data-code-theme="notion"] {
+  --prose-code-bg: light-dark(#f7f6f3, #1e1e1e);
+  --prose-code-surface: light-dark(#f7f6f3, #1e1e1e);
+  --prose-code-text: light-dark(#37352f, #d4d4d4);
+  --prose-inline-code-bg: light-dark(#f1f0ee, #2b2b2b);
+  --prose-inline-code-text: light-dark(#eb5757, #ff7369);
+  --hljs-comment: light-dark(#8e908c, #969896);
+  --hljs-keyword: light-dark(#8959a8, #b294bb);
+  --hljs-tag: light-dark(#c82829, #cc6666);
+  --hljs-variable: light-dark(#c82829, #cc6666);
+  --hljs-attr: light-dark(#f5871f, #de935f);
+  --hljs-string: light-dark(#718c00, #b5bd68);
+  --hljs-number: light-dark(#f5871f, #de935f);
+  --hljs-builtin: light-dark(#3e999f, #8abeb7);
+  --hljs-class: light-dark(#3e999f, #8abeb7);
+  --hljs-title: light-dark(#4271ae, #81a2be);
+}
+
+[data-reading-code-theme="sepia"],
+.codeBlock[data-code-theme="sepia"] {
+  --prose-code-bg: light-dark(#efe6cf, #221e18);
+  --prose-code-surface: light-dark(#efe6cf, #221e18);
+  --prose-code-text: light-dark(#4d3b2b, #d8c9a8);
+  --prose-inline-code-bg: light-dark(#eadfc4, #362f26);
+  --prose-inline-code-text: light-dark(#96521f, #e0a96a);
+  --hljs-comment: light-dark(#a3906c, #8a7a5c);
+  --hljs-keyword: light-dark(#8a3b2a, #e0996a);
+  --hljs-variable: light-dark(#6a4a2a, #cbb896);
+  --hljs-attr: light-dark(#3a6a6a, #7ab0a0);
+  --hljs-string: light-dark(#7a5a1f, #c9b45c);
+  --hljs-number: light-dark(#3a6a6a, #7ab0a0);
+  --hljs-title: light-dark(#8a5a2a, #e0b070);
+}
+
+[data-reading-code-theme="contrast"],
+.codeBlock[data-code-theme="contrast"] {
+  --prose-code-bg: light-dark(#f4f4f4, #0a0a0a);
+  --prose-code-surface: light-dark(#f4f4f4, #0a0a0a);
+  --prose-code-text: light-dark(#000000, #ffffff);
+  --prose-inline-code-bg: light-dark(#eeeeee, #111111);
+  --prose-inline-code-text: light-dark(#000000, #ffe066);
+  --hljs-comment: light-dark(#555555, #c7c7c7);
+  --hljs-keyword: light-dark(#7a00cc, #ffd400);
+  --hljs-variable: light-dark(#7a00cc, #ffd400);
+  --hljs-attr: light-dark(#003bb3, #8ad7ff);
+  --hljs-string: light-dark(#a80000, #8cff8c);
+  --hljs-number: light-dark(#003bb3, #8ad7ff);
+  --hljs-title: light-dark(#005f5f, #ff9cf0);
+}
+
+[data-reading-code-theme="feishu"],
+.codeBlock[data-code-theme="feishu"] {
+  --prose-code-bg: light-dark(#f8f9fa, #18191b);
+  --prose-code-surface: light-dark(#f8f9fa, #18191b);
+  --prose-code-text: light-dark(#1f2329, #e8eaed);
+  --prose-inline-code-bg: light-dark(#f5f6f7, #2b2c30);
+  --prose-inline-code-text: light-dark(#0f45c2, #7fa7ff);
+  --hljs-comment: light-dark(#8f959e, #80868b);
+  --hljs-keyword: light-dark(#7a3ce0, #b39cff);
+  --hljs-tag: light-dark(#d83931, #ff7873);
+  --hljs-variable: light-dark(#1f2329, #e8eaed);
+  --hljs-attr: light-dark(#1456f0, #7fa7ff);
+  --hljs-string: light-dark(#0f8a5f, #6fd9a8);
+  --hljs-number: light-dark(#1456f0, #7fa7ff);
+  --hljs-title: light-dark(#c2410c, #ffab70);
+}

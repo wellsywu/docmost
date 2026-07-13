@@ -8,7 +8,11 @@
     }
   }
 
-  .node-image, .node-video, .node-pdf, .node-excalidraw, .node-drawio {
+  .node-image,
+  .node-video,
+  .node-pdf,
+  .node-excalidraw,
+  .node-drawio {
     &.ProseMirror-selectednode {
       outline: none;
     }
@@ -19,7 +23,7 @@
     align-items: center;
     justify-content: center;
     background-color: var(--mantine-color-body);
-    border-radius: var(--mantine-radius-default);
+    border-radius: var(--prose-block-radius, 8px);
     cursor: pointer;
     padding: 15px;
     height: 25px;
@@ -42,12 +46,22 @@
     animation: media-pulse 1.2s ease-in-out infinite;
 
     @mixin light {
-      background: linear-gradient(-90deg, var(--mantine-color-gray-3) 0%, var(--mantine-color-gray-1) 50%, var(--mantine-color-gray-3) 100%);
+      background: linear-gradient(
+        -90deg,
+        var(--mantine-color-gray-3) 0%,
+        var(--mantine-color-gray-1) 50%,
+        var(--mantine-color-gray-3) 100%
+      );
       background-size: 400% 400%;
     }
 
     @mixin dark {
-      background: linear-gradient(-90deg, var(--mantine-color-dark-6) 0%, var(--mantine-color-dark-5) 50%, var(--mantine-color-dark-6) 100%);
+      background: linear-gradient(
+        -90deg,
+        var(--mantine-color-dark-6) 0%,
+        var(--mantine-color-dark-5) 50%,
+        var(--mantine-color-dark-6) 100%
+      );
       background-size: 400% 400%;
     }
 
@@ -61,4 +75,3 @@
     }
   }
 }
-

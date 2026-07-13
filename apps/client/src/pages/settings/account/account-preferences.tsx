@@ -1,6 +1,7 @@
 import SettingsTitle from "@/components/settings/settings-title.tsx";
 import AccountLanguage from "@/features/user/components/account-language.tsx";
 import AccountTheme from "@/features/user/components/account-theme.tsx";
+import { ReadingThemePref } from "@/features/theming/reading-theme-pref";
 import PageWidthPref from "@/features/user/components/page-width-pref.tsx";
 import PageEditPref from "@/features/user/components/page-state-pref";
 import FixedToolbarPref from "@/features/user/components/fixed-toolbar-pref";
@@ -26,12 +27,16 @@ export default function AccountPreferences() {
 
       <Divider my={"md"} />
 
+      <ReadingThemePref />
+
+      <Divider my={"md"} />
+
       <AccountLanguage />
 
       <Divider my={"md"} />
 
       <PageWidthPref />
-      
+
       <Divider my={"md"} />
 
       <PageEditPref />

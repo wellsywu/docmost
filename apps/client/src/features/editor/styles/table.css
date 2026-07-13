@@ -4,18 +4,18 @@
   overflow-x: auto;
   & table {
     overflow-x: hidden;
-    min-width: 700px !important;
+    min-width: var(--prose-table-min-width, 700px);
   }
 }
 
 .table-dnd-preview {
   padding: 0;
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: var(--prose-table-dnd-bg, rgba(255, 255, 255, 0.3));
   backdrop-filter: blur(2px);
 }
 
 .table-dnd-drop-indicator {
-  background-color: var(--mantine-color-blue-5);
+  background-color: var(--prose-accent, var(--mantine-color-blue-5));
   z-index: 3;
 }
 
@@ -23,7 +23,7 @@
   table {
     border-collapse: separate;
     border-spacing: 0;
-    border: 1px solid #ced4da;
+    border: 1px solid var(--prose-table-border, #ced4da);
     border-radius: 8px;
     margin: 0;
     table-layout: fixed;
@@ -36,8 +36,8 @@
          separate above) lets border-radius round the outer corners — a
          collapsed table cannot be rounded. Last column / last row drop
          their cell border to avoid doubling the table border (see below). */
-      border-right: 1px solid #ced4da;
-      border-bottom: 1px solid #ced4da;
+      border-right: 1px solid var(--prose-table-border, #ced4da);
+      border-bottom: 1px solid var(--prose-table-border, #ced4da);
       box-sizing: border-box;
       min-width: 1em;
       padding: 3px 5px;
@@ -58,16 +58,16 @@
     }
 
     th {
-      background-color: light-dark(
-        var(--mantine-color-gray-1),
-        var(--mantine-color-dark-5)
+      background-color: var(
+        --prose-table-header,
+        light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5))
       );
       font-weight: bold;
       text-align: left;
     }
 
     .column-resize-handle {
-      background-color: var(--mantine-color-blue-5);
+      background-color: var(--prose-accent, var(--mantine-color-blue-5));
       bottom: -1px;
       position: absolute;
       right: -1px;
@@ -78,7 +78,7 @@
     }
 
     .selectedCell:after {
-      background: rgba(200, 200, 255, 0.4);
+      background: var(--prose-table-selection, rgba(200, 200, 255, 0.4));
       content: "";
       left: 0;
       right: 0;
@@ -134,48 +134,47 @@
       /* Blue */
       td[data-background-color="#b4d5ff"],
       th[data-background-color="#b4d5ff"] {
-        background-color: #1a3a5c !important;
+        background-color: var(--prose-table-blue, #1a3a5c) !important;
       }
 
       /* Green */
       td[data-background-color="#acf5d2"],
       th[data-background-color="#acf5d2"] {
-        background-color: #1a4d3a !important;
+        background-color: var(--prose-table-green, #1a4d3a) !important;
       }
 
       /* Yellow */
       td[data-background-color="#fef1b4"],
       th[data-background-color="#fef1b4"] {
-        background-color: #7c5014 !important;
+        background-color: var(--prose-table-yellow, #7c5014) !important;
       }
 
       /* Red */
       td[data-background-color="#ffbead"],
       th[data-background-color="#ffbead"] {
-        background-color: #5c2a23 !important;
+        background-color: var(--prose-table-red, #5c2a23) !important;
       }
 
       /* Pink */
       td[data-background-color="#ffc7fe"],
       th[data-background-color="#ffc7fe"] {
-        background-color: #4d2a4d !important;
+        background-color: var(--prose-table-pink, #4d2a4d) !important;
       }
 
       /* Gray */
       td[data-background-color="#eaecef"],
       th[data-background-color="#eaecef"] {
-        background-color: #2a2e33 !important;
+        background-color: var(--prose-table-gray, #2a2e33) !important;
       }
 
       /* Purple */
       td[data-background-color="#c1b7f2"],
       th[data-background-color="#c1b7f2"] {
-        background-color: #3a2f5c !important;
+        background-color: var(--prose-table-purple, #3a2f5c) !important;
       }
     }
   }
 }
-
 
 /* Header-row pinning. Two CSS paths, picked by `header-pin/controller.ts`:
    - native sticky (preferred): wrapper drops its overflow constraint so
@@ -201,7 +200,9 @@
   top: var(--editor-pin-offset, 90px);
 }
 
-.tableWrapper.tableHeaderPinned:not(.tableWrapperNoOverflow) table tr:first-child {
+.tableWrapper.tableHeaderPinned:not(.tableWrapperNoOverflow)
+  table
+  tr:first-child {
   position: relative;
   transform: translateY(var(--table-pin-offset, 0px));
 }
@@ -232,21 +233,18 @@
   width: 18px;
   height: 18px;
   border-radius: 4px;
-  background: light-dark(
-    rgba(55, 53, 47, 0.08),
-    rgba(255, 255, 255, 0.08)
-  );
-  color: light-dark(
-    rgba(55, 53, 47, 0.55),
-    rgba(255, 255, 255, 0.55)
-  );
+  background: light-dark(rgba(55, 53, 47, 0.08), rgba(255, 255, 255, 0.08));
+  color: light-dark(rgba(55, 53, 47, 0.55), rgba(255, 255, 255, 0.55));
   user-select: none;
   cursor: pointer;
   z-index: 1;
   /* Hidden by default; revealed on header-cell hover or when this column is
      the active sort (see selectors below). */
   opacity: 0;
-  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+  transition:
+    opacity 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .ProseMirror table th:hover .tableReadonlySortChevron,
@@ -255,10 +253,7 @@
 }
 
 .tableReadonlySortChevron:hover {
-  background: light-dark(
-    rgba(55, 53, 47, 0.16),
-    rgba(255, 255, 255, 0.16)
-  );
+  background: light-dark(rgba(55, 53, 47, 0.16), rgba(255, 255, 255, 0.16));
 }
 
 /* Immediate tooltip on the chevron — same style language as the rest of the
@@ -300,10 +295,7 @@
     var(--mantine-color-blue-1),
     var(--mantine-color-blue-9)
   );
-  color: light-dark(
-    var(--mantine-color-blue-7),
-    var(--mantine-color-blue-2)
-  );
+  color: light-dark(var(--mantine-color-blue-7), var(--mantine-color-blue-2));
 }
 
 .tableReadonlySortChevron[data-sort="asc"] svg {

@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import SettingsSidebar from "@/components/settings/settings-sidebar.tsx";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import {
   asideStateAtom,
   desktopSidebarAtom,
@@ -20,6 +20,8 @@ import { useToggleSidebar } from "@/components/layouts/global/hooks/hooks/use-to
 import GlobalSidebar from "@/components/layouts/global/global-sidebar.tsx";
 import { ASIDE_PANEL_ID } from "@/hooks/use-toggle-aside.tsx";
 import { MAIN_CONTENT_ID, SkipToMain } from "@/components/ui/skip-to-main.tsx";
+import { userAtom } from "@/features/user/atoms/current-user-atom.ts";
+import { getReadingThemeAttributes } from "@/features/theming/reading-preferences.ts";
 
 export default function GlobalAppShell({
   children,
@@ -82,86 +84,105 @@ export default function GlobalAppShell({
   const isPageRoute = location.pathname.includes("/p/");
   const showGlobalSidebar = !isSpaceRoute && !isSettingsRoute && !isAiRoute;
 
+  // On document pages, paint the whole content pane (AppShell.Main, including its
+  // `padding="md"` frame) with the reading background so the article, breadcrumb
+  // header and side gutters read as one continuous surface. The navbar and app
+  // header are sibling AppShell slots, so they stay on the app background. The
+  // default theme's --prose-bg equals the app body, so nothing changes there.
+  const user = useAtomValue(userAtom);
+  const readingThemeAttributes = getReadingThemeAttributes(user);
+
   return (
     <>
       <SkipToMain />
       <AppShell
-      header={{ height: 45 }}
-      navbar={{
-        width: isSpaceRoute ? sidebarWidth : 300,
-        breakpoint: "sm",
-        collapsed: {
-          mobile: !mobileOpened,
-          desktop: !desktopOpened,
-        },
-      }}
-      aside={
-        isPageRoute && {
-          width: 350,
+        header={{ height: 45 }}
+        navbar={{
+          width: isSpaceRoute ? sidebarWidth : 300,
           breakpoint: "sm",
-          collapsed: { mobile: !isAsideOpen, desktop: !isAsideOpen },
+          collapsed: {
+            mobile: !mobileOpened,
+            desktop: !desktopOpened,
+          },
+        }}
+        aside={
+          isPageRoute && {
+            width: 350,
+            breakpoint: "sm",
+            collapsed: { mobile: !isAsideOpen, desktop: !isAsideOpen },
+          }
         }
-      }
-      padding="md"
-    >
-      <AppShell.Header px="md" className={classes.header}>
-        <AppHeader />
-      </AppShell.Header>
-      <AppShell.Navbar
-        className={classes.navbar}
-        withBorder={false}
-        ref={sidebarRef}
-        aria-label={
-          isSpaceRoute
-            ? t("Space navigation")
-            : isSettingsRoute
-              ? t("Settings navigation")
-              : isAiRoute
-                ? t("AI navigation")
-                : t("Main navigation")
-        }
+        padding="md"
       >
-        {isSpaceRoute && (
-          <div className={classes.resizeHandle} onMouseDown={startResizing} />
-        )}
-        {isSpaceRoute && <SpaceSidebar />}
-        {isSettingsRoute && <SettingsSidebar />}
-        {isAiRoute && <AiChatSidebar />}
-        {showGlobalSidebar && <GlobalSidebar />}
-      </AppShell.Navbar>
-      <AppShell.Main id={MAIN_CONTENT_ID} tabIndex={-1}>
-        {isSettingsRoute ? (
-          <Container size={900} pb={80}>
-            {children}
-          </Container>
-        ) : (
-          children
-        )}
-      </AppShell.Main>
-
-      {isPageRoute && (
-        <AppShell.Aside
-          id={ASIDE_PANEL_ID}
-          tabIndex={-1}
-          className={classes.aside}
-          p="md"
+        <AppShell.Header px="md" className={classes.header}>
+          <AppHeader />
+        </AppShell.Header>
+        <AppShell.Navbar
+          className={classes.navbar}
           withBorder={false}
+          ref={sidebarRef}
           aria-label={
-            asideTab === "comments"
-              ? t("Comments")
-              : asideTab === "toc"
-                ? t("Table of contents")
-                : asideTab === "chat"
-                  ? t("AI Chat")
-                  : asideTab === "details"
-                    ? t("Details")
-                    : undefined
+            isSpaceRoute
+              ? t("Space navigation")
+              : isSettingsRoute
+                ? t("Settings navigation")
+                : isAiRoute
+                  ? t("AI navigation")
+                  : t("Main navigation")
           }
         >
-          <Aside />
-        </AppShell.Aside>
-      )}
-    </AppShell>
+          {isSpaceRoute && (
+            <div className={classes.resizeHandle} onMouseDown={startResizing} />
+          )}
+          {isSpaceRoute && <SpaceSidebar />}
+          {isSettingsRoute && <SettingsSidebar />}
+          {isAiRoute && <AiChatSidebar />}
+          {showGlobalSidebar && <GlobalSidebar />}
+        </AppShell.Navbar>
+        <AppShell.Main
+          id={MAIN_CONTENT_ID}
+          tabIndex={-1}
+          {...(isPageRoute ? readingThemeAttributes : {})}
+          style={
+            isPageRoute
+              ? {
+                  backgroundColor: "var(--prose-bg, var(--mantine-color-body))",
+                }
+              : undefined
+          }
+        >
+          {isSettingsRoute ? (
+            <Container size={900} pb={80}>
+              {children}
+            </Container>
+          ) : (
+            children
+          )}
+        </AppShell.Main>
+
+        {isPageRoute && (
+          <AppShell.Aside
+            id={ASIDE_PANEL_ID}
+            tabIndex={-1}
+            className={classes.aside}
+            p="md"
+            withBorder={false}
+            aria-label={
+              asideTab === "comments"
+                ? t("Comments")
+                : asideTab === "toc"
+                  ? t("Table of contents")
+                  : asideTab === "chat"
+                    ? t("AI Chat")
+                    : asideTab === "details"
+                      ? t("Details")
+                      : undefined
+            }
+          >
+            <Aside />
+          </AppShell.Aside>
+        )}
+      </AppShell>
     </>
   );
 }

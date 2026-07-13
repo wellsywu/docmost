@@ -28,6 +28,46 @@ export class UpdateUserDto extends PartialType(
 
   @IsOptional()
   @IsString()
+  @IsIn([
+    'default',
+    'sepia',
+    'contrast',
+    'notion',
+    'cursor',
+    'copilot',
+    'tokyo',
+    'feishu',
+  ])
+  readingTheme: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['sans', 'serif', 'grotesk'])
+  readingFont: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['compact', 'standard', 'large'])
+  readingSize: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([
+    'auto',
+    'github',
+    'dracula',
+    'cursor',
+    'copilot',
+    'tokyo',
+    'notion',
+    'sepia',
+    'contrast',
+    'feishu',
+  ])
+  readingCodeTheme: string;
+
+  @IsOptional()
+  @IsString()
   locale: string;
 
   @IsOptional()

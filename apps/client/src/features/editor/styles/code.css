@@ -1,89 +1,217 @@
 .ProseMirror {
+  /* Yuque-style card: one bordered, rounded surface holding the header
+   * toolbar and the line-numbered code body. */
   .codeBlock {
-    padding: 4px;
-    border-radius: var(--mantine-radius-default);
-    background-color: light-dark(var(--mantine-color-gray-0),  var(--mantine-color-dark-8));
-    }
+    border-radius: var(--prose-block-radius, 8px);
+    border: 1px solid
+      var(
+        --prose-code-border,
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5))
+      );
+    background-color: var(
+      --prose-code-surface,
+      light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))
+    );
+    overflow: hidden;
+  }
+
+  /* The code area next to the line-number gutter: no wrapping so gutter rows
+   * stay aligned 1:1 with code lines; long lines scroll horizontally. */
+  .codeBlock pre {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    border-radius: 0;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.6;
+  }
 
   pre {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
     margin: 4px;
     font-family: "JetBrainsMono", var(--mantine-font-family-monospace);
-    border-radius: var(--mantine-radius-default);
+    /* Nested one step inside the .codeBlock surface, so round a touch less. */
+    border-radius: calc(var(--prose-block-radius, 8px) - 2px);
     tab-size: 4;
 
-    @mixin light {
-      background-color: var(--mantine-color-gray-0);
-      color: var(--mantine-color-gray-9);
-    }
-
-    @mixin dark {
-      background-color: var(--mantine-color-dark-8);
-      color: var(--mantine-color-dark-1);
-    }
+    background-color: var(
+      --prose-code-bg,
+      light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))
+    );
+    color: var(
+      --prose-code-text,
+      light-dark(var(--mantine-color-gray-9), var(--mantine-color-dark-1))
+    );
 
     code {
       color: inherit;
       padding: 0;
       background: none;
-      font-size: var(--mantine-font-size-sm);
+      /* --code-font-size is set per block via the codeBlock node's fontSize
+       * attribute; unset blocks follow the editor default. */
+      font-size: var(--code-font-size, var(--mantine-font-size-sm));
     }
 
-    /* Code styling */
+    /* Token → color mapping, grouped the way official highlight.js themes
+     * group scopes (github.css / tokyo-night-dark.css / dracula). Themes set
+     * the --hljs-* variables; the finer-grained ones (tag, attr, builtin,
+     * function, class, meta) fall back along a chain to the six base
+     * variables, so a theme that only defines the base six still renders. */
     .hljs-comment,
-    .hljs-quote {
-      color: light-dark(
-        var(--mantine-color-gray-6),
-        var(--mantine-color-dark-2)
-      );
-    }
-
-    .hljs-variable,
-    .hljs-template-variable,
-    .hljs-attribute,
-    .hljs-tag,
-    .hljs-name,
-    .hljs-regexp,
-    .hljs-link,
-    .hljs-name,
-    .hljs-selector-id,
-    .hljs-selector-class {
-      color: light-dark(var(--mantine-color-red-7), var(--mantine-color-red-5));
-    }
-
-    .hljs-number,
-    .hljs-meta,
-    .hljs-built_in,
-    .hljs-builtin-name,
-    .hljs-literal,
-    .hljs-type,
-    .hljs-params {
-      color: light-dark(
-        var(--mantine-color-blue-7),
-        var(--mantine-color-cyan-5)
-      );
-    }
-
-    .hljs-string,
-    .hljs-symbol,
-    .hljs-bullet {
-      color: light-dark(var(--mantine-color-red-7), var(--mantine-color-red-5));
-    }
-
-    .hljs-title,
-    .hljs-section {
-      color: light-dark(
-        var(--mantine-color-pink-7),
-        var(--mantine-color-yellow-5)
+    .hljs-quote,
+    .hljs-code,
+    .hljs-formula {
+      color: var(
+        --hljs-comment,
+        light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2))
       );
     }
 
     .hljs-keyword,
-    .hljs-selector-tag {
-      color: light-dark(
-        var(--mantine-color-violet-7),
-        var(--mantine-color-violet-3)
+    .hljs-doctag,
+    .hljs-template-tag,
+    .hljs-template-variable,
+    .hljs-variable.language_ {
+      color: var(
+        --hljs-keyword,
+        light-dark(var(--mantine-color-violet-7), var(--mantine-color-violet-3))
       );
+    }
+
+    /* Tag names (HTML elements, CSS type selectors). */
+    .hljs-tag,
+    .hljs-name,
+    .hljs-selector-tag,
+    .hljs-selector-pseudo {
+      color: var(
+        --hljs-tag,
+        var(
+          --hljs-keyword,
+          light-dark(var(--mantine-color-violet-7), var(--mantine-color-violet-3))
+        )
+      );
+    }
+
+    /* Attribute / object-key names (HTML attrs, JSON keys, CSS ids/classes). */
+    .hljs-attr,
+    .hljs-attribute,
+    .hljs-selector-attr,
+    .hljs-selector-id,
+    .hljs-selector-class,
+    .hljs-property {
+      color: var(
+        --hljs-attr,
+        var(
+          --hljs-variable,
+          light-dark(var(--mantine-color-red-7), var(--mantine-color-red-5))
+        )
+      );
+    }
+
+    .hljs-variable {
+      color: var(
+        --hljs-variable,
+        light-dark(var(--mantine-color-red-7), var(--mantine-color-red-5))
+      );
+    }
+
+    .hljs-string,
+    .hljs-regexp,
+    .hljs-symbol,
+    .hljs-bullet,
+    .hljs-link {
+      color: var(
+        --hljs-string,
+        light-dark(var(--mantine-color-red-7), var(--mantine-color-red-5))
+      );
+    }
+
+    .hljs-number,
+    .hljs-literal {
+      color: var(
+        --hljs-number,
+        light-dark(var(--mantine-color-blue-7), var(--mantine-color-cyan-5))
+      );
+    }
+
+    .hljs-built_in,
+    .hljs-builtin-name,
+    .hljs-type {
+      color: var(
+        --hljs-builtin,
+        var(
+          --hljs-number,
+          light-dark(var(--mantine-color-blue-7), var(--mantine-color-cyan-5))
+        )
+      );
+    }
+
+    /* Preprocessor / shebang / decorators. */
+    .hljs-meta {
+      color: var(
+        --hljs-meta,
+        var(
+          --hljs-number,
+          light-dark(var(--mantine-color-blue-7), var(--mantine-color-cyan-5))
+        )
+      );
+    }
+
+    .hljs-title,
+    .hljs-section {
+      color: var(
+        --hljs-title,
+        light-dark(var(--mantine-color-pink-7), var(--mantine-color-yellow-5))
+      );
+    }
+
+    .hljs-title.function_ {
+      color: var(
+        --hljs-function,
+        var(
+          --hljs-title,
+          light-dark(var(--mantine-color-pink-7), var(--mantine-color-yellow-5))
+        )
+      );
+    }
+
+    .hljs-title.class_,
+    .hljs-title.class_.inherited__ {
+      color: var(
+        --hljs-class,
+        var(
+          --hljs-title,
+          light-dark(var(--mantine-color-pink-7), var(--mantine-color-yellow-5))
+        )
+      );
+    }
+
+    /* Plain foreground: official themes leave params uncolored, and subst
+     * (interpolation inside template strings) must reset the string color it
+     * would otherwise inherit from its parent span. */
+    .hljs-params,
+    .hljs-subst,
+    .hljs-punctuation,
+    .hljs-operator {
+      color: var(
+        --prose-code-text,
+        light-dark(var(--mantine-color-gray-9), var(--mantine-color-dark-1))
+      );
+    }
+
+    .hljs-addition {
+      color: var(--hljs-addition, light-dark(#116329, #7ee787));
+      background-color: light-dark(#dafbe1, rgba(46, 160, 67, 0.15));
+    }
+
+    .hljs-deletion {
+      color: var(--hljs-deletion, light-dark(#82071e, #ffa198));
+      background-color: light-dark(#ffebe9, rgba(248, 81, 73, 0.15));
+    }
+
+    .hljs-link {
+      text-decoration: underline;
     }
 
     .hljs-emphasis {
@@ -102,14 +230,10 @@
     border-radius: var(--mantine-radius-sm);
     margin: 0;
 
-    @mixin where-light {
-      background-color: var(--mantine-color-gray-1);
-      color: var(--mantine-color-text);
-    }
-
-    @mixin where-dark {
-      background-color: var(--mantine-color-dark-5) !important;
-      color: var(--mantine-color-text);
-    }
+    background-color: var(
+      --prose-inline-code-bg,
+      light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5))
+    );
+    color: var(--prose-inline-code-text, var(--mantine-color-text));
   }
 }

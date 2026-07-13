@@ -18,6 +18,9 @@ import { BaseView } from "@/ee/base/components/base-view";
 import { useHasFeature } from "@/ee/hooks/use-feature";
 import { Feature } from "@/ee/features";
 import { getPageTitle } from "@/features/page/page.utils";
+import { useAtomValue } from "jotai";
+import { userAtom } from "@/features/user/atoms/current-user-atom.ts";
+import { getReadingThemeAttributes } from "@/features/theming/reading-preferences.ts";
 const MemoizedFullEditor = React.memo(FullEditor);
 const MemoizedTitleEditor = React.memo(TitleEditor);
 const MemoizedPageHeader = React.memo(PageHeader);
@@ -35,7 +38,12 @@ export default function Page() {
           icon={IconAlertTriangle}
           title={t("Failed to load page. An error occurred.")}
           action={
-            <Button variant="default" size="sm" mt="xs" onClick={resetErrorBoundary}>
+            <Button
+              variant="default"
+              size="sm"
+              mt="xs"
+              onClick={resetErrorBoundary}
+            >
               {t("Try again")}
             </Button>
           }
@@ -58,11 +66,15 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
   } = usePageQuery({ pageId: extractPageSlugId(pageSlug) });
   const { data: space } = useGetSpaceBySlugQuery(page?.space?.slug);
 
+  const user = useAtomValue(userAtom);
+  // Carry the reading theme on the page wrapper so the fixed breadcrumb header
+  // (a sibling of the editor) inherits --prose-bg and matches the article.
+  const readingThemeAttributes = getReadingThemeAttributes(user);
+
   const hasBases = useHasFeature(Feature.BASES);
   const canEdit = !page?.deletedAt && (page?.permissions?.canEdit ?? false);
   const canComment =
-    canEdit ||
-    (space?.settings?.comments?.allowViewerComments === true);
+    canEdit || space?.settings?.comments?.allowViewerComments === true;
 
   if (isLoading) {
     return <></>;
@@ -78,7 +90,13 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
             "This page may have been deleted, moved, or you may not have access.",
           )}
           action={
-            <Button component={Link} to="/home" variant="default" size="sm" mt="xs">
+            <Button
+              component={Link}
+              to="/home"
+              variant="default"
+              size="sm"
+              mt="xs"
+            >
               {t("Go to homepage")}
             </Button>
           }
@@ -86,10 +104,7 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
       );
     }
     return (
-      <EmptyState
-        icon={IconFileOff}
-        title={t("Error fetching page data.")}
-      />
+      <EmptyState icon={IconFileOff} title={t("Error fetching page data.")} />
     );
   }
 
@@ -101,9 +116,13 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
     return (
       <div
         className="base-page-root"
+        {...readingThemeAttributes}
         style={{
           display: "flex",
           flexDirection: "column",
+          // Paint the content pane with the reading background (navs are outside
+          // this wrapper). Default theme --prose-bg equals the app body.
+          backgroundColor: "var(--prose-bg, var(--mantine-color-body))",
           // Height: see `.base-page-root` in core.css.
           // Clear the fixed PageHeader (breadcrumb) plus a little extra so the
           // pinned column-header row isn't tucked half under it.
@@ -158,7 +177,17 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
 
   return (
     page && (
-      <div>
+      <div
+        {...readingThemeAttributes}
+        style={{
+          // Paint the whole content pane (breadcrumb strip + gutters + article)
+          // with the reading background so the block reads as one surface. The
+          // left/top app-shell navs are outside this wrapper, so they are
+          // unaffected. Default theme --prose-bg equals the app body.
+          backgroundColor: "var(--prose-bg, var(--mantine-color-body))",
+          minHeight: "calc(100dvh - var(--app-shell-header-height, 45px))",
+        }}
+      >
         <Helmet>
           <title>{`${page?.icon || ""}  ${getPageTitle(page?.title, page?.isBase, t)}`}</title>
         </Helmet>
