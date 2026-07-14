@@ -3,6 +3,7 @@
   align-items: center;
   overflow: hidden;
   flex-wrap: nowrap;
+  max-width: 100%;
 
   a {
     color: var(--mantine-color-default-color);
@@ -10,19 +11,25 @@
   }
 
   .mantine-Breadcrumbs-breadcrumb {
-    min-width: 1px;
+    min-width: 0;
+    max-width: 100%;
+    flex: 0 1 auto;
     overflow: hidden;
   }
 }
 
 .truncatedText {
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: 100%;
 }
 
 .breadcrumbDiv {
+  /* Keep document paths from competing with the page action menu. */
+  max-width: 60%;
+  min-width: 0;
   overflow: hidden;
   @media (max-width: $mantine-breakpoint-sm) {
     overflow: visible;

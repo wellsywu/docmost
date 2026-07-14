@@ -105,9 +105,11 @@ import { countWords } from "alfaaz";
 import AutoJoiner from "@/features/editor/extensions/autojoiner.ts";
 import GlobalDragHandle from "@/features/editor/extensions/drag-handle.ts";
 import { CleanStyles } from "@/features/editor/extensions/clean-styles.ts";
+import { EditorShortcuts } from "@/features/editor/extensions/editor-shortcuts.ts";
 
 // @ts-ignore
 export const mainExtensions = [
+  EditorShortcuts,
   StarterKit.configure({
     heading: false,
     undoRedo: false,
