@@ -13,6 +13,10 @@ export const readingFonts = [
   { id: "sans", label: "Sans" },
   { id: "serif", label: "Serif" },
   { id: "grotesk", label: "Grotesk" },
+  { id: "system", label: "System" },
+  { id: "mono", label: "Mono" },
+  { id: "rounded", label: "Rounded" },
+  { id: "kaiti", label: "Kaiti" },
 ] as const;
 
 export const readingSizes = [

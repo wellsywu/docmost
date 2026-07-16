@@ -261,6 +261,25 @@
   --prose-font: "Avenir Next", "Noto Sans CJK SC", "PingFang SC", sans-serif;
 }
 
+[data-reading-font="system"] {
+  --prose-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+[data-reading-font="mono"] {
+  --prose-font: ui-monospace, "SF Mono", "Cascadia Code", Consolas,
+    "Noto Sans Mono CJK SC", "Sarasa Mono SC", "Microsoft YaHei", monospace;
+}
+
+[data-reading-font="rounded"] {
+  --prose-font: "Varela Round", "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN",
+    "Yuanti SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+[data-reading-font="kaiti"] {
+  --prose-font: "Kaiti SC", KaiTi, STKaiti, "Kaiti TC", "Songti SC", serif;
+}
+
 [data-reading-size="compact"] {
   --prose-size: 0.9375rem;
   --prose-leading: 1.6;
