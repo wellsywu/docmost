@@ -28,6 +28,7 @@ import clsx from "clsx";
 import { currentPageEditModeAtom } from "@/features/editor/atoms/editor-atoms.ts";
 import { EmptyPageGetStarted } from "@/features/editor/components/empty-page/empty-page-get-started";
 import { getReadingPreferences } from "@/features/theming/reading-preferences.ts";
+import { MediaZoomProvider } from "@/features/editor/components/common/media-zoom-provider.tsx";
 
 const MemoizedTitleEditor = React.memo(TitleEditor);
 const MemoizedPageEditor = React.memo(PageEditor);
@@ -122,6 +123,7 @@ export function FullEditor({
         canComment={canComment}
       />
       <EmptyPageGetStarted pageId={pageId} editable={editable} />
+      <MediaZoomProvider />
     </Container>
   );
 }

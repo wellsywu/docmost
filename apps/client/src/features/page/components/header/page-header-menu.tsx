@@ -1,4 +1,11 @@
-import { ActionIcon, Group, Menu, Text, ThemeIcon, Tooltip } from "@mantine/core";
+import {
+  ActionIcon,
+  Group,
+  Menu,
+  Text,
+  ThemeIcon,
+  Tooltip,
+} from "@mantine/core";
 import {
   IconArrowRight,
   IconArrowsHorizontal,
@@ -21,7 +28,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useAsideTriggerProps } from "@/hooks/use-toggle-aside.tsx";
 import { useAtom, useAtomValue } from "jotai";
 import { historyAtoms } from "@/features/page-history/atoms/history-atoms.ts";
-import { useDisclosure, useHotkeys } from "@mantine/hooks";
+import { useDisclosure } from "@mantine/hooks";
 import { useClipboard } from "@/hooks/use-clipboard";
 import { useParams } from "react-router-dom";
 import { usePageQuery } from "@/features/page/queries/page-query.ts";
@@ -58,6 +65,7 @@ import {
   useWatchPageMutation,
   useUnwatchPageMutation,
 } from "@/features/page/queries/watcher-query";
+import { usePageShortcuts } from "@/features/shortcuts/hooks/use-page-shortcuts";
 
 interface PageHeaderMenuProps {
   readOnly?: boolean;
@@ -71,27 +79,11 @@ export default function PageHeaderMenu({ readOnly }: PageHeaderMenuProps) {
     pageId: extractPageSlugId(pageSlug),
   });
   const isDeleted = !!page?.deletedAt;
-
-  useHotkeys(
-    [
-      [
-        "mod+F",
-        () => {
-          const event = new CustomEvent("openFindDialogFromEditor", {});
-          document.dispatchEvent(event);
-        },
-      ],
-      [
-        "Escape",
-        () => {
-          const event = new CustomEvent("closeFindDialogFromEditor", {});
-          document.dispatchEvent(event);
-        },
-        { preventDefault: false },
-      ],
-    ],
-    [],
-  );
+  usePageShortcuts({
+    canEdit: Boolean(page) && !readOnly,
+    isDeleted,
+    isBase: !!page?.isBase,
+  });
 
   if (isDeleted) {
     return null;
@@ -248,7 +240,10 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
           <Menu.Item
             leftSection={
               isFavorited ? (
-                <IconStarFilled size={16} color="var(--mantine-color-yellow-5)" />
+                <IconStarFilled
+                  size={16}
+                  color="var(--mantine-color-yellow-5)"
+                />
               ) : (
                 <IconStar size={16} />
               )

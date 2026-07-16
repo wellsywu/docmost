@@ -1,12 +1,17 @@
-import { Text, MantineSize, SegmentedControl } from "@mantine/core";
+import { Text, MantineSize, SegmentedControl, Tooltip } from "@mantine/core";
 import { useAtom } from "jotai";
 import { userAtom } from "@/features/user/atoms/current-user-atom.ts";
 import { updateUser } from "@/features/user/services/user-service.ts";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageEditMode } from "@/features/user/types/user.types.ts";
-import { ResponsiveSettingsRow, ResponsiveSettingsContent, ResponsiveSettingsControl } from "@/components/ui/responsive-settings-row";
+import {
+  ResponsiveSettingsRow,
+  ResponsiveSettingsContent,
+  ResponsiveSettingsControl,
+} from "@/components/ui/responsive-settings-row";
 import { currentPageEditModeAtom } from "@/features/editor/atoms/editor-atoms.ts";
+import { SHORTCUTS } from "@/features/shortcuts/lib/shortcuts";
 
 export default function PageStatePref() {
   const { t } = useTranslation();
@@ -87,8 +92,28 @@ export function PageEditModeToggle({ size }: { size?: MantineSize }) {
       value={currentPageEditMode}
       onChange={(v) => setCurrentPageEditMode(v as PageEditMode)}
       data={[
-        { label: t("Edit"), value: PageEditMode.Edit },
-        { label: t("Read"), value: PageEditMode.Read },
+        {
+          label: (
+            <Tooltip
+              label={`${t("Edit")} (${SHORTCUTS.editPage.chords[0].join("+")})`}
+              withArrow
+            >
+              <span>{t("Edit")}</span>
+            </Tooltip>
+          ),
+          value: PageEditMode.Edit,
+        },
+        {
+          label: (
+            <Tooltip
+              label={`${t("Read")} (${SHORTCUTS.readPage.chords[0].join("+")})`}
+              withArrow
+            >
+              <span>{t("Read")}</span>
+            </Tooltip>
+          ),
+          value: PageEditMode.Read,
+        },
       ]}
     />
   );

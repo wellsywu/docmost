@@ -1,6 +1,8 @@
 ul[data-type="taskList"] {
     list-style: none;
-    padding: 0;
+    /* Keep the checkbox near the bullet-marker rail so task lists line up
+       with the 1.5rem indent used by ul/ol instead of sitting flush left. */
+    padding: 0 0 0 0.5rem;
 
     p {
         margin: 0;

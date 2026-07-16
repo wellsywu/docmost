@@ -1316,5 +1316,17 @@
   "Standard": "标准",
   "Large": "大号",
   "Follow theme": "跟随主题",
+  "Keyboard shortcuts": "键盘快捷键",
+  "Enter edit mode": "进入编辑模式",
+  "Return to read mode": "返回阅读模式",
+  "Create a page": "新建页面",
+  "Create a subpage from the focused page": "在当前聚焦页面下新建子页面",
+  "Move the focused page to trash": "将当前聚焦页面移至回收站",
+  "Navigation": "导航",
+  "Editor": "编辑器",
+  "Find in page": "在页面中查找",
+  "Confirm auto-save": "确认自动保存",
+  "Changes are saved automatically": "更改已自动保存",
+  "or": "或",
   "Feishu": "飞书"
 }

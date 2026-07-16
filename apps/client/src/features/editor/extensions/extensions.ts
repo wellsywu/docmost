@@ -384,11 +384,6 @@ export const mainExtensions = [
           document.dispatchEvent(event);
           return true;
         },
-        Escape: () => {
-          const event = new CustomEvent("closeFindDialogFromEditor", {});
-          document.dispatchEvent(event);
-          return false;
-        },
       };
     },
   }).configure(),
@@ -410,7 +405,7 @@ const TEMPLATE_EXCLUDED_SLASH_ITEMS = new Set([
   "Audio",
   "Synced block",
   "Base (Inline)",
-  "Kanban"
+  "Kanban",
 ]);
 
 const TemplateSlashCommand = Command.configure({

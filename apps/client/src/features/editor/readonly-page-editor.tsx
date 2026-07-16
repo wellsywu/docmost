@@ -10,6 +10,7 @@ import { useAtom } from "jotai";
 import { readOnlyEditorAtom } from "@/features/editor/atoms/editor-atoms.ts";
 import { useEditorScroll } from "./hooks/use-editor-scroll";
 import { TransclusionLookupProvider } from "@/features/editor/components/transclusion/transclusion-lookup-context";
+import { MediaZoomProvider } from "@/features/editor/components/common/media-zoom-provider.tsx";
 
 interface PageEditorProps {
   title: string;
@@ -110,6 +111,7 @@ export default function ReadonlyPageEditor({
         }}
       ></EditorProvider>
       <div style={{ paddingBottom: "20vh" }}></div>
+      <MediaZoomProvider />
     </TransclusionLookupProvider>
   );
 }

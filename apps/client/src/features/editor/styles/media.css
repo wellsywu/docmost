@@ -8,6 +8,20 @@
     }
   }
 
+  &[contenteditable="false"] .node-image img {
+    cursor: zoom-in;
+  }
+
+  .image-caption {
+    margin-top: 6px;
+    max-width: 100%;
+    font-size: 0.85em;
+    line-height: 1.4;
+    color: var(--mantine-color-dimmed);
+    text-align: center;
+    word-break: break-word;
+  }
+
   .node-image,
   .node-video,
   .node-pdf,

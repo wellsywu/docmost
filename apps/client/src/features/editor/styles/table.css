@@ -43,6 +43,7 @@
       padding: 3px 5px;
       position: relative;
       vertical-align: top;
+      text-align: left !important;
 
       &:first-of-type:not(a) {
         margin-top: 0;

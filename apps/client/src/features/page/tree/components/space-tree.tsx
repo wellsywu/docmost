@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Text } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import {
   fetchAllAncestorChildren,
   useGetRootSidebarPagesQuery,
@@ -12,6 +13,7 @@ import classes from "@/features/page/tree/styles/tree.module.css";
 import { treeDataAtom } from "@/features/page/tree/atoms/tree-data-atom.ts";
 import { openTreeNodesAtom } from "@/features/page/tree/atoms/open-tree-nodes-atom.ts";
 import { useTreeMutation } from "@/features/page/tree/hooks/use-tree-mutation.ts";
+import { useDeletePageModal } from "@/features/page/hooks/use-delete-page-modal.tsx";
 import {
   buildTree,
   buildTreeWithChildren,
@@ -35,7 +37,8 @@ export default function SpaceTree({ spaceId, readOnly }: SpaceTreeProps) {
   const { t } = useTranslation();
   const { pageSlug } = useParams();
   const [data, setData] = useAtom(treeDataAtom);
-  const { handleMove } = useTreeMutation(spaceId);
+  const { handleMove, handleCreate, handleDelete } = useTreeMutation(spaceId);
+  const { openDeleteModal } = useDeletePageModal();
   const {
     data: pagesData,
     hasNextPage,
@@ -204,6 +207,48 @@ export default function SpaceTree({ spaceId, readOnly }: SpaceTreeProps) {
     (n: SpaceTreeNode) => getPageTitle(n.name, n.isBase, t),
     [t],
   );
+  const canMutate = useCallback(
+    (node: SpaceTreeNode) => !readOnly && node.canEdit !== false,
+    [readOnly],
+  );
+  const handleCreateChild = useCallback(
+    async (node: SpaceTreeNode) => {
+      if (!canMutate(node)) return;
+
+      const needsChildren =
+        node.hasChildren && (!node.children || node.children.length === 0);
+      if (!openIds.has(node.id) || needsChildren) {
+        try {
+          await handleToggle(node.id, true);
+        } catch {
+          await handleToggle(node.id, false);
+          notifications.show({
+            message: t("Failed to create page"),
+            color: "red",
+          });
+          return;
+        }
+      }
+      try {
+        await handleCreate(node.id);
+      } catch {
+        // useCreatePageMutation already reports the failure.
+      }
+    },
+    [canMutate, openIds, handleToggle, handleCreate, t],
+  );
+  const handleRequestDelete = useCallback(
+    (node: SpaceTreeNode, onDeleteComplete: () => void) => {
+      if (!canMutate(node)) return;
+      openDeleteModal({
+        onConfirm: async () => {
+          await handleDelete(node.id);
+          onDeleteComplete();
+        },
+      });
+    },
+    [canMutate, openDeleteModal, handleDelete],
+  );
 
   return (
     <div className={classes.treeContainer}>
@@ -220,6 +265,9 @@ export default function SpaceTree({ spaceId, readOnly }: SpaceTreeProps) {
           renderRow={renderRow}
           onMove={handleMove}
           onToggle={handleToggle}
+          canMutate={canMutate}
+          onCreateChild={handleCreateChild}
+          onRequestDelete={handleRequestDelete}
           readOnly={readOnly}
           disableDrag={disableDragDrop}
           disableDrop={disableDragDrop}

@@ -1,0 +1,102 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+.viewport {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+.viewport[data-grabbing="true"] {
+  cursor: grabbing;
+}
+
+/* Transformed stage: zoom/pan is applied here. */
+.stage {
+  transform-origin: center center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  display: block;
+}
+
+/* Mermaid (and other SVG) needs a solid card so themed text stays readable
+   against the dark backdrop. Sizes to its (width-scaled) content; panning
+   moves it and the overlay clips overflow. */
+.svgCard {
+  padding: 24px;
+  border-radius: 8px;
+  background-color: var(--mantine-color-body);
+}
+
+.svgCard svg {
+  max-width: none !important;
+  height: auto;
+  display: block;
+}
+
+.toolbar {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10002;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.toolbarButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.toolbarButton:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.percent {
+  min-width: 48px;
+  text-align: center;
+  color: #fff;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background-color: rgba(255, 255, 255, 0.25);
+}

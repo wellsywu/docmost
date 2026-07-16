@@ -32,6 +32,7 @@ export interface ImageOptions extends DefaultImageOptions {
 export interface ImageAttributes {
   src?: string;
   alt?: string;
+  caption?: string;
   align?: string;
   attachmentId?: string;
   size?: number;
@@ -122,6 +123,12 @@ export const TiptapImage = Image.extend<ImageOptions>({
         renderHTML: (attributes: ImageAttributes) => ({
           alt: attributes.alt,
         }),
+      },
+      caption: {
+        default: undefined,
+        parseHTML: (element) => element.getAttribute("data-caption"),
+        renderHTML: (attributes: ImageAttributes) =>
+          attributes.caption ? { "data-caption": attributes.caption } : {},
       },
       attachmentId: {
         default: undefined,
@@ -266,6 +273,9 @@ export const TiptapImage = Image.extend<ImageOptions>({
       }
 
       let currentNode = node;
+      // Caption element lives below the image; assigned right after the node
+      // view (and its container) exist, and kept in sync in onUpdate.
+      let figcaption: HTMLElement | null = null;
 
       const nodeView = new ResizableNodeView({
         element: el,
@@ -316,6 +326,13 @@ export const TiptapImage = Image.extend<ImageOptions>({
           const container = nodeView.dom as HTMLElement;
           applyAlignment(container, align);
 
+          if (
+            figcaption &&
+            updatedNode.attrs.caption !== currentNode.attrs.caption
+          ) {
+            renderImageCaption(figcaption, updatedNode.attrs.caption);
+          }
+
           currentNode = updatedNode;
           return true;
         },
@@ -332,6 +349,16 @@ export const TiptapImage = Image.extend<ImageOptions>({
       });
 
       const dom = nodeView.dom as HTMLElement;
+
+      // Stack image + caption vertically; alignment then flows via alignItems.
+      dom.style.flexDirection = "column";
+
+      // Caption below the image (hidden when empty).
+      figcaption = document.createElement("figcaption");
+      figcaption.className = "image-caption";
+      figcaption.contentEditable = "false";
+      renderImageCaption(figcaption, node.attrs.caption);
+      dom.appendChild(figcaption);
 
       // Apply initial alignment
       applyAlignment(dom, node.attrs.align || "center");
@@ -375,11 +402,23 @@ export const TiptapImage = Image.extend<ImageOptions>({
 });
 
 function applyAlignment(container: HTMLElement, align: string) {
+  // justifyContent covers the default (row) containers; alignItems covers the
+  // image container, which is switched to a column so a caption can sit below.
+  let value: string;
   if (align === "left") {
-    container.style.justifyContent = "flex-start";
+    value = "flex-start";
   } else if (align === "right") {
-    container.style.justifyContent = "flex-end";
+    value = "flex-end";
   } else {
-    container.style.justifyContent = "center";
+    value = "center";
   }
+  container.style.justifyContent = value;
+  container.style.alignItems = value;
+}
+
+// Show/update the figcaption below an image; hidden when there is no caption.
+function renderImageCaption(figcaption: HTMLElement, caption?: string) {
+  const text = (caption ?? "").trim();
+  figcaption.textContent = text;
+  figcaption.style.display = text ? "block" : "none";
 }

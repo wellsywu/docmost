@@ -1,3 +1,6 @@
+
+/*change style*/
+
 :root {
   /* Height of the fixed PageHeader at the top of every page. Used by
    * standalone base layout (paddingTop) and by sticky bands inside
@@ -52,7 +55,12 @@
     margin-bottom: 0.5em;
   }
 
-  ul,
+  ul {
+    padding: 0 1rem 0 1.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
   ol {
     padding: 0 1rem;
     margin-top: 0.25rem;
