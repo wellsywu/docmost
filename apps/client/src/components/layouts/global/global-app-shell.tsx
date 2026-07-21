@@ -21,7 +21,10 @@ import GlobalSidebar from "@/components/layouts/global/global-sidebar.tsx";
 import { ASIDE_PANEL_ID } from "@/hooks/use-toggle-aside.tsx";
 import { MAIN_CONTENT_ID, SkipToMain } from "@/components/ui/skip-to-main.tsx";
 import { userAtom } from "@/features/user/atoms/current-user-atom.ts";
-import { getReadingThemeAttributes } from "@/features/theming/reading-preferences.ts";
+import {
+  getReadingThemeAttributes,
+  useApplyReadingPreferencesToRoot,
+} from "@/features/theming/reading-preferences.ts";
 
 export default function GlobalAppShell({
   children,
@@ -91,6 +94,8 @@ export default function GlobalAppShell({
   // default theme's --prose-bg equals the app body, so nothing changes there.
   const user = useAtomValue(userAtom);
   const readingThemeAttributes = getReadingThemeAttributes(user);
+  // Carry the reading theme + font onto <html> so the whole app UI follows it.
+  useApplyReadingPreferencesToRoot(user);
 
   return (
     <>

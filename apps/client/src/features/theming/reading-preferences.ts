@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { IUser } from "@/features/user/types/user.types.ts";
 import {
   defaultReadingPreferences,
@@ -62,4 +63,24 @@ export function getReadingThemeAttributes(user: IUser | null) {
     "data-reading-size": preferences.size,
     "data-reading-code-theme": preferences.codeTheme,
   };
+}
+
+/**
+ * Mirror the reading preferences onto <html> so the whole app UI — sidebar,
+ * top bar, menus and portaled overlays (modals/dropdowns render under <body>) —
+ * follows the chosen reading theme and font, not just the article. The reading
+ * theme repaints the app-level Mantine tokens and the font is applied to <body>
+ * via CSS keyed on these root attributes (see reading-themes.css). The `default`
+ * theme/`sans` font resolve to the stock tokens, so they are a no-op.
+ */
+export function useApplyReadingPreferencesToRoot(user: IUser | null) {
+  const { theme, font, size, codeTheme } = getReadingPreferences(user);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-reading-theme", theme);
+    root.setAttribute("data-reading-font", font);
+    root.setAttribute("data-reading-size", size);
+    root.setAttribute("data-reading-code-theme", codeTheme);
+  }, [theme, font, size, codeTheme]);
 }

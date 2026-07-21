@@ -1,4 +1,3 @@
-
 /*change style*/
 
 :root {
@@ -214,6 +213,14 @@
   .selection,
   *::selection {
     background-color: light-dark(Highlight, var(--mantine-color-gray-7));
+  }
+
+  /* Hide the native layer only while editor-ext is deliberately painting the
+   * preserved .selection decoration. Read-only editors never receive focus,
+   * so using :not(:focus-within) here would make normal drag selection
+   * transparent. */
+  &[data-selection-preserved="true"] *::selection {
+    background-color: transparent;
   }
 
   .comment-mark {

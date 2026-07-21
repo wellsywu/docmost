@@ -42,7 +42,9 @@ export class UpdateUserDto extends PartialType(
 
   @IsOptional()
   @IsString()
-  @IsIn(['sans', 'serif', 'grotesk'])
+  // Keep in sync with the reading font registry (client:
+  // features/theming/reading-fonts.ts). Adding a font requires an id here too.
+  @IsIn(['sans', 'serif', 'kaiti', 'rounded', 'mono', 'system'])
   readingFont: string;
 
   @IsOptional()

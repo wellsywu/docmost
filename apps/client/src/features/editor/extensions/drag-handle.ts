@@ -391,6 +391,15 @@ export function DragHandlePlugin(
             return;
           }
 
+          // A held button means the user is drag-selecting text (or mid
+          // drag): the handle is irrelevant, and the hit-testing below
+          // (elementsFromPoint + getComputedStyle + rect reads, then style
+          // writes) would force a layout pass on every single mousemove.
+          if (event.buttons !== 0) {
+            hideDragHandle();
+            return;
+          }
+
           const node = nodeDOMAtCoords(
             {
               x: event.clientX + 50 + options.dragHandleWidth,

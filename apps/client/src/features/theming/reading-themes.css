@@ -9,7 +9,7 @@
  * (github/dracula) are an optional override applied on top when chosen.
  *
  * Syntax variables: the six base ones (--hljs-comment/keyword/variable/string/
- * number/title) are required; the finer ones (--hljs-tag/attr/builtin/function/
+ * number/title) are required; the finer one s (--hljs-tag/attr/builtin/function/
  * class/meta) are optional and fall back along the chain declared in code.css.
  * Palette sources: github ← highlight.js github.css + github-dark.css;
  * dracula ← draculatheme.com spec (light branch = official Alucard); cursor ←
@@ -249,36 +249,31 @@
   --hljs-title: light-dark(#c2410c, #ffab70);
 }
 
-[data-reading-font="sans"] {
-  --prose-font: var(--mantine-font-family);
+/* App-wide reading theme + font.
+ *
+ * The `data-reading-*` attributes are also written onto <html> (see
+ * reading-preferences.ts / global-app-shell). When present on the root, we lift
+ * the reading surface + text onto the app-level Mantine tokens and the reading
+ * font onto <body>, so the whole shell — header, content, cards, menus, modals
+ * (portals render under <body>) — follows the choice, not only the article.
+ *
+ * The `default` theme's --prose-bg/--prose-text equal the Mantine body/text
+ * tokens and its --prose-font (sans) equals --mantine-font-family, so the
+ * default selection is a no-op; only named themes/fonts tint the UI. The
+ * navbar/aside keep their own recessed background (app-shell.module.css). */
+html[data-reading-theme] {
+  --mantine-color-body: var(--prose-bg);
+  --mantine-color-text: var(--prose-text);
 }
 
-[data-reading-font="serif"] {
-  --prose-font: Georgia, "Noto Serif CJK SC", "Songti SC", serif;
+html[data-reading-font] body {
+  font-family: var(--prose-font);
 }
 
-[data-reading-font="grotesk"] {
-  --prose-font: "Avenir Next", "Noto Sans CJK SC", "PingFang SC", sans-serif;
-}
-
-[data-reading-font="system"] {
-  --prose-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    "PingFang SC", "Microsoft YaHei", sans-serif;
-}
-
-[data-reading-font="mono"] {
-  --prose-font: ui-monospace, "SF Mono", "Cascadia Code", Consolas,
-    "Noto Sans Mono CJK SC", "Sarasa Mono SC", "Microsoft YaHei", monospace;
-}
-
-[data-reading-font="rounded"] {
-  --prose-font: "Varela Round", "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN",
-    "Yuanti SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-}
-
-[data-reading-font="kaiti"] {
-  --prose-font: "Kaiti SC", KaiTi, STKaiti, "Kaiti TC", "Songti SC", serif;
-}
+/* Per-font `--prose-font` values and `@font-face` rules are generated from the
+ * font registry (reading-fonts.ts) and injected at app start — see
+ * reading-font-styles.ts. Adding a font is a one-place change there; no rule is
+ * needed here. */
 
 [data-reading-size="compact"] {
   --prose-size: 0.9375rem;

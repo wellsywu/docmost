@@ -176,7 +176,10 @@ export const EditorBubbleMenu: FC<EditorBubbleMenuProps> = (props) => {
       {...bubbleMenuProps}
       style={{ zIndex: 199, position: "relative" }}
     >
-      <div className={classes.bubbleMenu}>
+      {/* data-keep-editor-selection: focusing controls in here (link input
+          etc.) keeps the editor's selection highlight alive — see the
+          Selection extension in editor-ext. */}
+      <div className={classes.bubbleMenu} data-keep-editor-selection>
         {isGenerativeAiEnabled && (
           <>
             <Button

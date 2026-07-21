@@ -317,6 +317,7 @@ const EditorAiMenu = ({ editor }: EditorAiMenuProps): JSX.Element | null => {
         style={{ pointerEvents: "auto" }}
         tabIndex={0}
         ref={containerRef}
+        data-keep-editor-selection
       >
         <ResultPreview output={output} isLoading={isLoading} />
         <CommandSelector

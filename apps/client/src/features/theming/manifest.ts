@@ -9,15 +9,11 @@ export const readingThemes = [
   { id: "feishu", label: "Feishu" },
 ] as const;
 
-export const readingFonts = [
-  { id: "sans", label: "Sans" },
-  { id: "serif", label: "Serif" },
-  { id: "grotesk", label: "Grotesk" },
-  { id: "system", label: "System" },
-  { id: "mono", label: "Mono" },
-  { id: "rounded", label: "Rounded" },
-  { id: "kaiti", label: "Kaiti" },
-] as const;
+// Reading fonts are defined in reading-fonts.ts (their family stacks + bundled
+// web fonts live alongside them). Re-exported here so the rest of the app keeps
+// a single import surface for reading manifests.
+import { readingFontDefs } from "./reading-fonts";
+export { readingFontDefs as readingFonts };
 
 export const readingSizes = [
   { id: "compact", label: "Compact" },
@@ -39,7 +35,7 @@ export const readingCodeThemes = [
 ] as const;
 
 export type ReadingTheme = (typeof readingThemes)[number]["id"];
-export type ReadingFont = (typeof readingFonts)[number]["id"];
+export type ReadingFont = (typeof readingFontDefs)[number]["id"];
 export type ReadingSize = (typeof readingSizes)[number]["id"];
 export type ReadingCodeTheme = (typeof readingCodeThemes)[number]["id"];
 
