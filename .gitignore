@@ -46,9 +46,16 @@ glm.bat
 
 docs/
 scripts/
-CLAUDE.md
 deploy/
 .claude/
 .deploy/
 
 /test/
+
+CLAUDE.md
+AGENT.md
+.agents/
+.antigravity/
+.github/
+
+*.test.*
