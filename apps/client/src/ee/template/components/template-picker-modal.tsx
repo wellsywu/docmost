@@ -16,7 +16,7 @@ import {
   IconSearch,
   IconFileText,
 } from "@tabler/icons-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   useGetTemplatesQuery,
@@ -28,6 +28,7 @@ import UseTemplateModal from "@/ee/template/components/use-template-modal";
 import TemplatePreviewModal from "@/ee/template/components/template-preview-modal";
 import { buildPageUrl } from "@/features/page/page.utils";
 import classes from "./template-picker-modal.module.css";
+import { useNavigateToCreatedPage } from "@/features/page/hooks/use-navigate-to-created-page";
 
 type TemplatePickerModalProps = {
   opened: boolean;
@@ -44,7 +45,7 @@ export default function TemplatePickerModal({
   initialSpaceId,
 }: TemplatePickerModalProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const navigateToCreatedPage = useNavigateToCreatedPage();
   const useTemplateMutation = useUseTemplateMutation();
   const [query, setQuery] = useState("");
   const [debouncedQuery] = useDebouncedValue(query, 200);
@@ -89,7 +90,9 @@ export default function TemplatePickerModal({
       onClose();
       const space = spacesData?.items?.find((s) => s.id === initialSpaceId);
       if (page?.slugId && space?.slug) {
-        navigate(buildPageUrl(space.slug, page.slugId, page.title));
+        navigateToCreatedPage(
+          buildPageUrl(space.slug, page.slugId, page.title),
+        );
       }
     } catch {
       // error notification handled by mutation's onError

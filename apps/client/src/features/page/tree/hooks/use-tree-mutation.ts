@@ -20,6 +20,7 @@ import {
 import { buildPageUrl } from "@/features/page/page.utils.ts";
 import { getSpaceUrl } from "@/lib/config.ts";
 import { useQueryEmit } from "@/features/websocket/use-query-emit.ts";
+import { useNavigateToCreatedPage } from "@/features/page/hooks/use-navigate-to-created-page.ts";
 
 export type UseTreeMutation = {
   handleMove: (sourceId: string, op: DropOp) => Promise<void>;
@@ -40,6 +41,7 @@ export function useTreeMutation(spaceId: string): UseTreeMutation {
   const removePageMutation = useRemovePageMutation();
   const movePageMutation = useMovePageMutation();
   const navigate = useNavigate();
+  const navigateToCreatedPage = useNavigateToCreatedPage();
   const { spaceSlug, pageSlug } = useParams();
   const emit = useQueryEmit();
 
@@ -185,9 +187,17 @@ export function useTreeMutation(spaceId: string): UseTreeMutation {
         createdPage.slugId,
         createdPage.title,
       );
-      navigate(pageUrl);
+      navigateToCreatedPage(pageUrl);
     },
-    [spaceId, createPageMutation, setData, store, emit, navigate, spaceSlug],
+    [
+      spaceId,
+      createPageMutation,
+      setData,
+      store,
+      emit,
+      navigateToCreatedPage,
+      spaceSlug,
+    ],
   );
 
   const handleRename = useCallback(

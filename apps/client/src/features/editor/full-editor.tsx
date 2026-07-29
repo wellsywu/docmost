@@ -29,6 +29,8 @@ import { currentPageEditModeAtom } from "@/features/editor/atoms/editor-atoms.ts
 import { EmptyPageGetStarted } from "@/features/editor/components/empty-page/empty-page-get-started";
 import { getReadingPreferences } from "@/features/theming/reading-preferences.ts";
 import { MediaZoomProvider } from "@/features/editor/components/common/media-zoom-provider.tsx";
+import { useLocation } from "react-router-dom";
+import { isCreatedPageNavigationState } from "@/features/page/hooks/use-navigate-to-created-page.ts";
 
 const MemoizedTitleEditor = React.memo(TitleEditor);
 const MemoizedPageEditor = React.memo(PageEditor);
@@ -68,6 +70,7 @@ export function FullEditor({
   contributors,
   canComment,
 }: FullEditorProps) {
+  const location = useLocation();
   const [user] = useAtom(userAtom);
   const fullPageWidth = user.settings?.preferences?.fullPageWidth;
   const editorToolbarEnabled =
@@ -80,14 +83,17 @@ export function FullEditor({
   const readingPreferences = getReadingPreferences(user);
   const isEditMode = currentPageEditMode === PageEditMode.Edit;
 
-  // Apply the user's saved preference only once on initial load, not on every
-  // page navigation — so the mode sticks across navigations within a session.
+  // A newly created page always opens editable. Otherwise apply the user's
+  // saved preference only once so the chosen mode sticks across navigation.
   useEffect(() => {
-    if (!defaultEditModeApplied) {
+    if (isCreatedPageNavigationState(location.state)) {
+      setCurrentPageEditMode(PageEditMode.Edit);
+      defaultEditModeApplied = true;
+    } else if (!defaultEditModeApplied) {
       setCurrentPageEditMode(userPageEditMode as PageEditMode);
       defaultEditModeApplied = true;
     }
-  }, [userPageEditMode, setCurrentPageEditMode]);
+  }, [location.state, userPageEditMode, setCurrentPageEditMode]);
 
   return (
     <Container

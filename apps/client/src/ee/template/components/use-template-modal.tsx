@@ -1,10 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 import { ITemplate } from "@/ee/template/types/template.types";
 import { useUseTemplateMutation } from "@/ee/template/queries/template-query";
 import { buildPageUrl } from "@/features/page/page.utils";
 import { DestinationPickerModal } from "@/components/ui/destination-picker/destination-picker-modal";
 import { DestinationSelection } from "@/components/ui/destination-picker/destination-picker.types";
+import { useNavigateToCreatedPage } from "@/features/page/hooks/use-navigate-to-created-page";
 
 type UseTemplateModalProps = {
   template: ITemplate;
@@ -20,7 +20,7 @@ export default function UseTemplateModal({
   initialSpaceId,
 }: UseTemplateModalProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const navigateToCreatedPage = useNavigateToCreatedPage();
   const useTemplateMutation = useUseTemplateMutation();
 
   const handleSelect = async (selection: DestinationSelection) => {
@@ -40,7 +40,9 @@ export default function UseTemplateModal({
       if (page?.slugId) {
         const space = selection.space;
         if (space?.slug) {
-          navigate(buildPageUrl(space.slug, page.slugId, page.title));
+          navigateToCreatedPage(
+            buildPageUrl(space.slug, page.slugId, page.title),
+          );
         }
       }
     } catch {

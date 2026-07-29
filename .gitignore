@@ -50,3 +50,5 @@ CLAUDE.md
 deploy/
 .claude/
 .deploy/
+
+/test/

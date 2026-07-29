@@ -6,8 +6,8 @@ import { useTranslation } from "react-i18next";
 import { ISpace } from "@/features/space/types/space.types.ts";
 import { queryClient } from "@/main.tsx";
 import { SpaceSelect } from "@/features/space/components/sidebar/space-select.tsx";
-import { useNavigate } from "react-router-dom";
 import { buildPageUrl } from "@/features/page/page.utils.ts";
+import { useNavigateToCreatedPage } from "@/features/page/hooks/use-navigate-to-created-page.ts";
 
 interface CopyPageModalProps {
   pageId: string;
@@ -24,7 +24,7 @@ export default function CopyPageModal({
 }: CopyPageModalProps) {
   const { t } = useTranslation();
   const [targetSpace, setTargetSpace] = useState<ISpace>(null);
-  const navigate = useNavigate();
+  const navigateToCreatedPage = useNavigateToCreatedPage();
 
   const handleCopy = async () => {
     if (!targetSpace) return;
@@ -46,7 +46,7 @@ export default function CopyPageModal({
         copiedPage.slugId,
         copiedPage.title,
       );
-      navigate(pageUrl);
+      navigateToCreatedPage(pageUrl);
       notifications.show({
         message: t("Page copied successfully"),
       });
