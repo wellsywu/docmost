@@ -51,7 +51,10 @@ docs/*
 docs/requirements/*
 !docs/requirements/docmost-wechat-publisher/
 !docs/requirements/doocs-md-integration/
-scripts/
+# Anchored to the repo root: the deployment helpers stay local, but nested
+# scripts/ dirs (e.g. vendor/doocs-md/scripts, needed by its Dockerfile) must
+# be tracked or `git archive HEAD` ships an unbuildable tree.
+/scripts/
 CLAUDE.md
 deploy/
 .claude/
