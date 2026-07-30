@@ -1,0 +1,15 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "codeBlock",
+      "attrs": { "language": "mermaid" },
+      "content": [
+        {
+          "type": "text",
+          "text": "sequenceDiagram\nA->>B: 你好"
+        }
+      ]
+    }
+  ]
+}

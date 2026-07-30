@@ -85,6 +85,18 @@ export function getDrawioUrl() {
   return getConfigValue("DRAWIO_URL", "https://embed.diagrams.net");
 }
 
+/**
+ * Legacy Publisher connector URL kept for deployments that still consume it.
+ * The Docmost publishing entry point uses MD_EDITOR_URL instead.
+ */
+export function getPublisherUrl(): string {
+  return getConfigValue("PUBLISHER_URL", "")?.trim().replace(/\/+$/, "");
+}
+
+export function getMdEditorUrl(): string {
+  return getConfigValue("MD_EDITOR_URL", "")?.trim().replace(/\/+$/, "");
+}
+
 export function getBillingTrialDays() {
   return getConfigValue("BILLING_TRIAL_DAYS");
 }

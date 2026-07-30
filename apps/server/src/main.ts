@@ -118,6 +118,9 @@ async function bootstrap() {
         '/api/workspace/create',
         '/api/workspace/joined',
         '/api/workspace/find-by-email',
+        '/api/integrations/md/bootstrap',
+        '/api/integrations/md/settings',
+        '/api/integrations/md/sessions',
       ];
 
       if (

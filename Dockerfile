@@ -30,6 +30,8 @@ COPY --from=builder /app/packages/editor-ext/dist /app/packages/editor-ext/dist
 COPY --from=builder /app/packages/editor-ext/package.json /app/packages/editor-ext/package.json
 COPY --from=builder /app/packages/base-formula/dist /app/packages/base-formula/dist
 COPY --from=builder /app/packages/base-formula/package.json /app/packages/base-formula/package.json
+COPY --from=builder /app/packages/integration-db/dist /app/packages/integration-db/dist
+COPY --from=builder /app/packages/integration-db/package.json /app/packages/integration-db/package.json
 
 # Copy root package files
 COPY --from=builder /app/package.json /app/package.json

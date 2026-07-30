@@ -12,12 +12,28 @@ services:
       APP_URL: 'http://localhost:3000'
       APP_SECRET: 'REPLACE_WITH_LONG_SECRET'
       DATABASE_URL: 'postgresql://docmost:STRONG_DB_PASSWORD@db:5432/docmost'
+      INTEGRATION_DATABASE_URL: 'postgresql://docmost:STRONG_DB_PASSWORD@db:5432/docmost_integrations'
+      MD_EDITOR_URL: 'http://localhost:3080'
       REDIS_URL: 'redis://redis:6379'
+      # Browser-facing URL of the publisher profile below. Uncomment to show the
+      # "publish to WeChat" action in the page header.
+      # PUBLISHER_URL: 'http://localhost:3050'
     ports:
       - "3000:3000"
     restart: unless-stopped
     volumes:
       - docmost:/app/data/storage
+
+  md:
+    build:
+      context: ./vendor/doocs-md
+      dockerfile: Dockerfile
+    depends_on:
+      docmost:
+        condition: service_started
+    ports:
+      - "3080:80"
+    restart: unless-stopped
 
   db:
     image: postgres:16-alpine
@@ -28,8 +44,9 @@ services:
     restart: unless-stopped
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./packages/integration-db/docker/init-integration-database.sh:/docker-entrypoint-initdb.d/10-init-integration-database.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U docmost -d docmost"]
+      test: ["CMD-SHELL", "pg_isready -U docmost -d docmost && /docker-entrypoint-initdb.d/10-init-integration-database.sh"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -40,6 +57,30 @@ services:
     restart: unless-stopped
     volumes:
       - redis_data:/data
+
+  # Opt-in WeChat draft connector: docker compose --profile publisher up -d
+  publisher:
+    profiles: ["publisher"]
+    build:
+      context: .
+      dockerfile: apps/publisher/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      docmost:
+        condition: service_started
+    environment:
+      PUBLISHER_DATABASE_URL: 'postgres://docmost:STRONG_DB_PASSWORD@db:5432/docmost_integrations'
+      PUBLISHER_USE_MEMORY_STORE: '0'
+      PUBLISHER_AUTH_ENABLED: '1'
+      PUBLISHER_ACCESS_TOKEN: 'REPLACE_WITH_PUBLISHER_ACCESS_TOKEN'
+      DOCMOST_BASE_URL: 'http://docmost:3000/api'
+      DOCMOST_API_KEY: 'REPLACE_WITH_DOCMOST_API_KEY'
+      WECHAT_MODE: 'mock'
+      INTEGRATION_ENCRYPTION_SECRET: 'REPLACE_WITH_LONG_SECRET'
+    ports:
+      - "3050:3050"
+    restart: unless-stopped
 
 volumes:
   docmost:

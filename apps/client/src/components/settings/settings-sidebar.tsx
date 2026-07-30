@@ -15,6 +15,7 @@ import {
   IconSparkles,
   IconHistory,
   IconShieldCheck,
+  IconBrandWechat,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -38,6 +39,7 @@ import {
   prefetchWorkspaceMembers,
   prefetchAuditLogs,
   prefetchVerifiedPages,
+  prefetchWechatAccounts,
 } from "@/components/settings/settings-queries.tsx";
 import AppVersion from "@/components/settings/app-version.tsx";
 import { mobileSidebarAtom } from "@/components/layouts/global/hooks/atoms/sidebar-atom.ts";
@@ -115,6 +117,12 @@ const groupedData: DataGroup[] = [
         label: "AI settings",
         icon: IconSparkles,
         path: "/settings/ai",
+        role: "admin",
+      },
+      {
+        label: "WeChat official accounts",
+        icon: IconBrandWechat,
+        path: "/settings/wechat",
         role: "admin",
       },
       {
@@ -224,6 +232,9 @@ export default function SettingsSidebar() {
               break;
             case "Verified pages":
               prefetchHandler = prefetchVerifiedPages;
+              break;
+            case "WeChat official accounts":
+              prefetchHandler = prefetchWechatAccounts;
               break;
             default:
               break;

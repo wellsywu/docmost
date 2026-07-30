@@ -1,0 +1,33 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "drawio",
+      "attrs": {
+        "src": "/api/files/drawio/diagram.drawio.svg?t=1785375000000",
+        "alt": "drawio 中文架构图",
+        "title": "Drawio",
+        "width": 677,
+        "height": 320,
+        "size": 12345,
+        "aspectRatio": 2.115625,
+        "align": "center",
+        "attachmentId": "019fabe2-2a4d-7ee9-b9de-1c4dfbed0001"
+      }
+    },
+    {
+      "type": "excalidraw",
+      "attrs": {
+        "src": "/api/files/excalidraw/diagram.excalidraw.svg?t=1785375000001",
+        "alt": "Excalidraw 中文流程图",
+        "title": "Excalidraw",
+        "width": 677,
+        "height": 360,
+        "size": 23456,
+        "aspectRatio": 1.8805555556,
+        "align": "center",
+        "attachmentId": "019fabe2-2a4d-7ee9-b9de-1c4dfbed0002"
+      }
+    }
+  ]
+}

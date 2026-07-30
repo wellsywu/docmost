@@ -66,6 +66,7 @@ import {
   useUnwatchPageMutation,
 } from "@/features/page/queries/watcher-query";
 import { usePageShortcuts } from "@/features/shortcuts/hooks/use-page-shortcuts";
+import PublishToWeChat from "@/features/page/components/header/publish-to-wechat.tsx";
 
 interface PageHeaderMenuProps {
   readOnly?: boolean;
@@ -96,6 +97,8 @@ export default function PageHeaderMenu({ readOnly }: PageHeaderMenuProps) {
       {!readOnly && !page?.isBase && <PageEditModeToggle size="xs" />}
 
       <PageShareModal readOnly={readOnly} />
+
+      {!readOnly && !page?.isBase && <PublishToWeChat />}
 
       <Tooltip label={t("Comments")} openDelay={250} withArrow>
         <ActionIcon

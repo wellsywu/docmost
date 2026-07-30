@@ -20,6 +20,9 @@ const WorkspaceMembers = lazy(
 const WorkspaceSettings = lazy(
   () => import("@/pages/settings/workspace/workspace-settings"),
 );
+const WechatSettings = lazy(
+  () => import("@/pages/settings/integrations/wechat-settings"),
+);
 const Groups = lazy(() => import("@/pages/settings/group/groups"));
 const GroupInfo = lazy(() => import("./pages/settings/group/group-info"));
 const Spaces = lazy(() => import("@/pages/settings/space/spaces.tsx"));
@@ -143,6 +146,7 @@ export default function App() {
             />
             <Route path={"account/api-keys"} element={<UserApiKeys />} />
             <Route path={"workspace"} element={<WorkspaceSettings />} />
+            <Route path={"wechat"} element={<WechatSettings />} />
             <Route path={"members"} element={<WorkspaceMembers />} />
             <Route path={"api-keys"} element={<WorkspaceApiKeys />} />
             <Route path={"groups"} element={<Groups />} />

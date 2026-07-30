@@ -5,6 +5,7 @@ data
 # compiled output
 dist
 /node_modules
+node_modules/
 
 # Logs
 logs
@@ -44,7 +45,12 @@ lerna-debug.log*
 
 glm.bat
 
-docs/
+# Local notes stay out of the repo; only the publisher requirement docs are tracked.
+docs/*
+!docs/requirements/
+docs/requirements/*
+!docs/requirements/docmost-wechat-publisher/
+!docs/requirements/doocs-md-integration/
 scripts/
 CLAUDE.md
 deploy/
@@ -52,4 +58,5 @@ deploy/
 .deploy/
 
 *.test.*
+!apps/publisher/test/**
 AGENT.md
