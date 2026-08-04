@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedValue } from "@mantine/hooks";
 import { Group, Select, SelectProps, Text } from "@mantine/core";
 import { useGetSpacesQuery } from "@/features/space/queries/space-query.ts";
@@ -71,9 +71,40 @@ export function SpaceSelect({
     }
   }, [spaces]);
 
+  // 下拉列表滚动到边界（或内容不足以滚动）时，阻止滚动冒泡到文档，
+  // 否则鼠标滚轮会连带滚动右侧的页面内容
+  const detachWheelRef = useRef<(() => void) | null>(null);
+  const viewportRef = useCallback((viewport: HTMLDivElement | null) => {
+    detachWheelRef.current?.();
+    detachWheelRef.current = null;
+    if (!viewport) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport;
+      const scrollable = scrollHeight > clientHeight;
+      const atTop = scrollTop <= 0;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+      if (
+        !scrollable ||
+        (event.deltaY < 0 && atTop) ||
+        (event.deltaY > 0 && atBottom)
+      ) {
+        event.preventDefault();
+      }
+    };
+
+    viewport.addEventListener("wheel", handleWheel, { passive: false });
+    detachWheelRef.current = () =>
+      viewport.removeEventListener("wheel", handleWheel);
+  }, []);
+
+  useEffect(() => () => detachWheelRef.current?.(), []);
+
   return (
     <Select
       data={data}
+      scrollAreaProps={{ viewportRef, overscrollBehavior: "contain" }}
       renderOption={renderSelectOption}
       maxDropdownHeight={300}
       //label={label || 'Select space'}
@@ -90,7 +121,13 @@ export function SpaceSelect({
       nothingFoundMessage={t("No space found")}
       limit={50}
       checkIconPosition="right"
-      comboboxProps={{ width, withinPortal: true, position: "bottom", keepMounted: false, dropdownPadding: 0 }}
+      comboboxProps={{
+        width,
+        withinPortal: true,
+        position: "bottom",
+        keepMounted: false,
+        dropdownPadding: 0,
+      }}
       dropdownOpened={opened}
     />
   );
