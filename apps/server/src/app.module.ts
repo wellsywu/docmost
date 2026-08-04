@@ -27,7 +27,7 @@ import { LoggerModule } from './common/logger/logger.module';
 import { ClsModule } from 'nestjs-cls';
 import { NoopAuditModule } from './integrations/audit/audit.module';
 import { ThrottleModule } from './integrations/throttle/throttle.module';
-import { MdIntegrationDatabaseModule } from './integrations/md/database/md-database.module';
+import { DoocsModule } from './integrations/doocs/doocs.module';
 
 const enterpriseModules = [];
 try {
@@ -54,7 +54,7 @@ try {
     CoreModule,
     DatabaseModule,
     EnvironmentModule,
-    MdIntegrationDatabaseModule,
+    DoocsModule,
     RedisModule.forRootAsync({
       useClass: RedisConfigService,
     }),

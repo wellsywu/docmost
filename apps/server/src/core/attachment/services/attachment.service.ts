@@ -27,6 +27,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { QueueJob, QueueName } from '../../../integrations/queue/constants';
 import { Queue } from 'bullmq';
 import { createByteCountingStream } from '../../../common/helpers/utils';
+import { getMimeType, sanitizeFileName } from '../../../common/helpers';
+import * as path from 'node:path';
 
 @Injectable()
 export class AttachmentService {
@@ -133,11 +135,53 @@ export class AttachmentService {
         );
       }
     } catch (err) {
-      // delete uploaded file on error
+      await this.deleteRedundantFile(filePath);
       this.logger.error(err);
+      throw err;
     }
 
     return attachment;
+  }
+
+  async uploadPageFileFromBuffer(opts: {
+    bytes: Buffer;
+    fileName: string;
+    mimeType?: string;
+    pageId: string;
+    userId: string;
+    spaceId: string;
+    workspaceId: string;
+  }): Promise<Attachment> {
+    const fileName = sanitizeFileName(opts.fileName || 'image').slice(0, 255);
+    const fileExtension = path.extname(fileName).toLowerCase();
+    const attachmentId = uuid7();
+    const preparedFile: PreparedFile = {
+      buffer: opts.bytes,
+      fileName,
+      fileSize: opts.bytes.length,
+      fileExtension,
+      mimeType: opts.mimeType || getMimeType(fileName),
+    };
+    const filePath = `${getAttachmentFolderPath(AttachmentType.File, opts.workspaceId)}/${attachmentId}/${fileName}`;
+
+    await this.uploadToDrive(filePath, opts.bytes);
+
+    try {
+      return await this.saveAttachment({
+        attachmentId,
+        preparedFile,
+        filePath,
+        type: AttachmentType.File,
+        userId: opts.userId,
+        spaceId: opts.spaceId,
+        workspaceId: opts.workspaceId,
+        pageId: opts.pageId,
+      });
+    } catch (error) {
+      await this.deleteRedundantFile(filePath);
+      this.logger.error(error);
+      throw new BadRequestException('Failed to save attachment');
+    }
   }
 
   async uploadImage(

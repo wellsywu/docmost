@@ -14,8 +14,6 @@ import { getApiKeys } from "@/ee/api-key";
 import { getAuditLogs } from "@/ee/audit/services/audit-service";
 import { getVerificationList } from "@/ee/page-verification/services/page-verification-service";
 import { getScimTokens } from "@/ee/scim/services/scim-token-service";
-import { getWechatAccounts } from "@/features/integrations/md/services/md-integration-service";
-import { WECHAT_ACCOUNTS_QUERY_KEY } from "@/features/integrations/md/queries/md-integration-query";
 
 export const prefetchWorkspaceMembers = () => {
   const params: QueryParams = { limit: 100, query: "" };
@@ -106,12 +104,5 @@ export const prefetchScimTokens = () => {
   queryClient.prefetchQuery({
     queryKey: ["scim-token-list", { cursor: undefined }],
     queryFn: () => getScimTokens({}),
-  });
-};
-
-export const prefetchWechatAccounts = () => {
-  queryClient.prefetchQuery({
-    queryKey: WECHAT_ACCOUNTS_QUERY_KEY,
-    queryFn: getWechatAccounts,
   });
 };

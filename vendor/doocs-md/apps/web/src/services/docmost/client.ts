@@ -1,17 +1,28 @@
 import type {
   DocmostBootstrapResponse,
+  DocmostContentUpdateResponse,
+  DocmostPublishAsset,
+  DocmostPublishFileResponse,
   DocmostSetting,
+  DocmostUploadConfig,
   DocmostUploadResponse,
 } from './types'
 import type { SyncSetting } from '@/services/sync/types'
 import { clearDocmostSession, getDocmostSessionToken } from './session'
 
-const DOCMOST_API_PREFIX = `/docmost-api/integrations/md`
+const DOCMOST_API_PREFIX = `/docmost-api/integrations/doocs`
+
+interface DocmostApiResponse<T> {
+  data: T
+  success: boolean
+  status: number
+}
 
 export class DocmostApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public details?: unknown,
   ) {
     super(message)
     this.name = `DocmostApiError`
@@ -23,11 +34,26 @@ async function responseError(response: Response): Promise<DocmostApiError> {
   try {
     const body = await response.json() as { message?: string, error?: string }
     message = body.message || body.error || message
+    return new DocmostApiError(response.status, message, body)
   }
   catch {
     // Keep the HTTP status text when the response is not JSON.
   }
   return new DocmostApiError(response.status, message)
+}
+
+async function responseData<T>(response: Response): Promise<T> {
+  const body = await response.json() as T | DocmostApiResponse<T>
+  if (
+    typeof body === `object`
+    && body !== null
+    && `data` in body
+    && `success` in body
+    && `status` in body
+  ) {
+    return body.data
+  }
+  return body
 }
 
 async function authorizedRequest<T>(
@@ -49,7 +75,7 @@ async function authorizedRequest<T>(
       clearDocmostSession()
     throw await responseError(response)
   }
-  return await response.json() as T
+  return await responseData<T>(response)
 }
 
 export async function bootstrapDocmost(ticket: string): Promise<DocmostBootstrapResponse> {
@@ -60,7 +86,7 @@ export async function bootstrapDocmost(ticket: string): Promise<DocmostBootstrap
   })
   if (!response.ok)
     throw await responseError(response)
-  return await response.json() as DocmostBootstrapResponse
+  return await responseData<DocmostBootstrapResponse>(response)
 }
 
 export async function readDocmostSettings(): Promise<DocmostSetting[]> {
@@ -77,6 +103,20 @@ export async function updateDocmostSettings(settings: SyncSetting[]): Promise<Do
   })
 }
 
+export async function updateDocmostContent(payload: {
+  title?: string
+  markdown: string
+  expectedUpdatedAt: number
+  expectedContentHash: string
+  acknowledgeRoundtripRisk?: boolean
+}): Promise<DocmostContentUpdateResponse> {
+  return await authorizedRequest<DocmostContentUpdateResponse>(`/content/update`, {
+    method: `POST`,
+    headers: { 'Content-Type': `application/json` },
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function uploadDocmostImage(accountId: string, file: File): Promise<DocmostUploadResponse> {
   const body = new FormData()
   body.append(`accountId`, accountId)
@@ -84,5 +124,41 @@ export async function uploadDocmostImage(accountId: string, file: File): Promise
   return await authorizedRequest<DocmostUploadResponse>(`/upload`, {
     method: `POST`,
     body,
+  })
+}
+
+export async function uploadDocmostImageWithConfig(accountId: string | null, file: File): Promise<DocmostUploadResponse> {
+  const body = new FormData()
+  if (accountId)
+    body.append(`accountId`, accountId)
+  body.append(`file`, file, file.name)
+  return await authorizedRequest<DocmostUploadResponse>(`/upload`, {
+    method: `POST`,
+    body,
+  })
+}
+
+export async function publishDocmostAttachment(accountId: string | null, attachmentId: string): Promise<DocmostPublishAsset> {
+  return await authorizedRequest<DocmostPublishAsset>(`/upload/publish`, {
+    method: `POST`,
+    headers: { 'Content-Type': `application/json` },
+    body: JSON.stringify(accountId ? { attachmentId, accountId } : { attachmentId }),
+  })
+}
+
+export async function uploadDocmostPublishFile(accountId: string | null, file: File): Promise<DocmostPublishFileResponse> {
+  const body = new FormData()
+  if (accountId)
+    body.append(`accountId`, accountId)
+  body.append(`file`, file, file.name)
+  return await authorizedRequest<DocmostPublishFileResponse>(`/upload/publish-file`, {
+    method: `POST`,
+    body,
+  })
+}
+
+export async function readDocmostUploadConfig(): Promise<DocmostUploadConfig> {
+  return await authorizedRequest<DocmostUploadConfig>(`/upload/config`, {
+    method: `POST`,
   })
 }

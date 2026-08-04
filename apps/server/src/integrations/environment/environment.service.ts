@@ -53,20 +53,6 @@ export class EnvironmentService {
     return parseInt(this.configService.get<string>('DATABASE_MAX_POOL', '10'));
   }
 
-  getIntegrationDatabaseUrl(): string {
-    const url = this.configService.get<string>('INTEGRATION_DATABASE_URL');
-    if (!url) {
-      throw new Error('INTEGRATION_DATABASE_URL is required');
-    }
-    return url;
-  }
-
-  getIntegrationDatabaseMaxPool(): number {
-    return parseInt(
-      this.configService.get<string>('INTEGRATION_DATABASE_MAX_POOL', '5'),
-    );
-  }
-
   getRedisUrl(): string {
     return this.configService.get<string>(
       'REDIS_URL',
@@ -215,14 +201,6 @@ export class EnvironmentService {
 
   getDrawioUrl(): string {
     return this.configService.get<string>('DRAWIO_URL');
-  }
-
-  getPublisherUrl(): string {
-    return this.configService.get<string>('PUBLISHER_URL');
-  }
-
-  getMdEditorUrl(): string {
-    return this.configService.get<string>('MD_EDITOR_URL');
   }
 
   isCloud(): boolean {

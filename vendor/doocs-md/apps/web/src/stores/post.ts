@@ -38,7 +38,149 @@ function normalizePosts(raw: Post[]): Post[] {
 }
 
 function postSignature(post: Post): string {
-  return `${post.id}:${post.title}:${post.content.length}:${post.updateDatetime}:${post.parentId ?? ``}:${post.history?.length ?? 0}:${post.collapsed ? 1 : 0}`
+  return [
+    post.id,
+    post.title,
+    post.content.length,
+    post.updateDatetime,
+    post.parentId ?? ``,
+    post.history?.length ?? 0,
+    post.collapsed ? 1 : 0,
+    post.docmostPageId ?? ``,
+    post.docmostSavedTitle ?? ``,
+    post.docmostSavedMarkdown?.length ?? 0,
+    post.docmostUpdatedAt ?? ``,
+    post.docmostContentHash ?? ``,
+  ].join(`:`)
+}
+
+/**
+ * Selection after a delete: deleting some other document must not move the user
+ * to a different one, otherwise the editor buffer follows along and the list
+ * stops matching what is on screen.
+ */
+export function resolveCurrentPostIdAfterDelete(
+  remainingPosts: Pick<Post, 'id'>[],
+  deletedIds: string[],
+  currentPostId: string,
+  deletedIndex: number,
+): string {
+  if (currentPostId && !deletedIds.includes(currentPostId))
+    return currentPostId
+
+  const fallbackIndex = Math.min(Math.max(deletedIndex, 0), remainingPosts.length - 1)
+  return remainingPosts[fallbackIndex]?.id ?? ``
+}
+
+export interface DocmostPostOpenInput {
+  pageId: string
+  title: string
+  markdown: string
+  updatedAt: number
+  contentHash: string
+}
+
+interface DocmostPostOpenResult {
+  posts: Post[]
+  post: Post
+  loaded: {
+    postId: string
+    title: string
+    markdown: string
+    updatedAt: number
+    contentHash: string
+  }
+}
+
+function isCleanDocmostPost(post: Post) {
+  return (
+    post.docmostSavedTitle !== undefined
+    && post.docmostSavedMarkdown !== undefined
+    && post.title === post.docmostSavedTitle
+    && post.content === post.docmostSavedMarkdown
+  )
+}
+
+function setDocmostPostSnapshot(
+  post: Post,
+  title: string,
+  markdown: string,
+  updatedAt: number,
+  contentHash: string,
+) {
+  post.docmostSavedTitle = title
+  post.docmostSavedMarkdown = markdown
+  post.docmostUpdatedAt = updatedAt
+  post.docmostContentHash = contentHash
+}
+
+export function openDocmostPostInList(
+  currentPosts: Post[],
+  input: DocmostPostOpenInput,
+  createId: () => string = uuidv4,
+  now: Date = new Date(),
+): DocmostPostOpenResult {
+  let nextPosts = currentPosts
+  let post = nextPosts.find(p => p.docmostPageId === input.pageId)
+
+  if (!post) {
+    const exactLegacyMatches = nextPosts.filter(p =>
+      !p.docmostPageId
+      && p.title === input.title
+      && p.content === input.markdown,
+    )
+    post = exactLegacyMatches[0]
+
+    if (post) {
+      post.docmostPageId = input.pageId
+      post.updateDatetime = now
+      setDocmostPostSnapshot(post, input.title, input.markdown, input.updatedAt, input.contentHash)
+    }
+    else {
+      post = {
+        id: createId(),
+        title: input.title,
+        content: input.markdown,
+        history: [
+          { datetime: toStoredDateTime(now), content: input.markdown },
+        ],
+        createDatetime: now,
+        updateDatetime: now,
+        docmostPageId: input.pageId,
+      }
+      setDocmostPostSnapshot(post, input.title, input.markdown, input.updatedAt, input.contentHash)
+      nextPosts = [...nextPosts, post]
+    }
+  }
+  else if (isCleanDocmostPost(post)) {
+    post.title = input.title
+    post.content = input.markdown
+    post.updateDatetime = now
+    setDocmostPostSnapshot(post, input.title, input.markdown, input.updatedAt, input.contentHash)
+  }
+
+  const legacyDuplicateIds = new Set(nextPosts
+    .filter(p =>
+      p.id !== post.id
+      && !p.docmostPageId
+      && p.title === input.title
+      && p.content === input.markdown,
+    )
+    .map(p => p.id))
+  if (legacyDuplicateIds.size)
+    nextPosts = nextPosts.filter(p => !legacyDuplicateIds.has(p.id))
+
+  return {
+    posts: nextPosts,
+    post,
+    loaded: {
+      postId: post.id,
+      title: post.docmostSavedTitle ?? input.title,
+      markdown: post.docmostSavedMarkdown ?? input.markdown,
+      updatedAt: post.docmostUpdatedAt ?? input.updatedAt,
+      contentHash: post.docmostContentHash ?? input.contentHash,
+    },
+  }
 }
 
 /** Post list, current post, and CRUD operations. */
@@ -174,6 +316,24 @@ export const usePostStore = defineStore(`post`, () => {
     currentPostId.value = newPost.id
   }
 
+  const openDocmostPost = (input: DocmostPostOpenInput) => {
+    const result = openDocmostPostInList(posts.value, input)
+    posts.value = result.posts
+    currentPostId.value = result.post.id
+    return result.loaded
+  }
+
+  const updateDocmostPostSnapshot = (postId: string, input: {
+    title: string
+    markdown: string
+    updatedAt: number
+    contentHash: string
+  }) => {
+    const post = getPostById(postId)
+    if (post)
+      setDocmostPostSnapshot(post, input.title, input.markdown, input.updatedAt, input.contentHash)
+  }
+
   const renamePost = (id: string, title: string) => {
     const post = getPostById(id)
     if (post) {
@@ -186,6 +346,8 @@ export const usePostStore = defineStore(`post`, () => {
     const post = getPostById(id)
     if (!post)
       return
+
+    const deletedIndex = findIndexById(id)
 
     if (recursive) {
       const getChildIds = (parentId: string): string[] => {
@@ -202,8 +364,12 @@ export const usePostStore = defineStore(`post`, () => {
           posts.value.splice(idx, 1)
       })
 
-      if (!posts.value.some(p => p.id === currentPostId.value))
-        currentPostId.value = posts.value[Math.max(0, posts.value.length - 1)]?.id ?? ``
+      currentPostId.value = resolveCurrentPostIdAfterDelete(
+        posts.value,
+        allIdsToDelete,
+        currentPostId.value,
+        deletedIndex,
+      )
 
       persistImmediately()
       return
@@ -217,12 +383,16 @@ export const usePostStore = defineStore(`post`, () => {
       }
     })
 
-    const idx = findIndexById(id)
-    if (idx === -1)
+    if (deletedIndex === -1)
       return
 
-    posts.value.splice(idx, 1)
-    currentPostId.value = posts.value[Math.min(idx, posts.value.length - 1)]?.id ?? ``
+    posts.value.splice(deletedIndex, 1)
+    currentPostId.value = resolveCurrentPostIdAfterDelete(
+      posts.value,
+      [id],
+      currentPostId.value,
+      deletedIndex,
+    )
     persistImmediately()
   }
 
@@ -263,6 +433,8 @@ export const usePostStore = defineStore(`post`, () => {
     getPostById,
     findIndexById,
     addPost,
+    openDocmostPost,
+    updateDocmostPostSnapshot,
     renamePost,
     delPost,
     updatePostParentId,

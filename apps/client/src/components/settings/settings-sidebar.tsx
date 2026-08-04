@@ -15,7 +15,6 @@ import {
   IconSparkles,
   IconHistory,
   IconShieldCheck,
-  IconBrandWechat,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -39,8 +38,9 @@ import {
   prefetchWorkspaceMembers,
   prefetchAuditLogs,
   prefetchVerifiedPages,
-  prefetchWechatAccounts,
 } from "@/components/settings/settings-queries.tsx";
+import { doocsSettingsNavItem } from "@/features/integrations/doocs/settings-nav";
+import { prefetchDoocsSettings } from "@/features/integrations/doocs/settings-prefetch";
 import AppVersion from "@/components/settings/app-version.tsx";
 import { mobileSidebarAtom } from "@/components/layouts/global/hooks/atoms/sidebar-atom.ts";
 import { useToggleSidebar } from "@/components/layouts/global/hooks/hooks/use-toggle-sidebar.ts";
@@ -119,12 +119,7 @@ const groupedData: DataGroup[] = [
         path: "/settings/ai",
         role: "admin",
       },
-      {
-        label: "WeChat official accounts",
-        icon: IconBrandWechat,
-        path: "/settings/wechat",
-        role: "admin",
-      },
+      doocsSettingsNavItem,
       {
         label: "Audit log",
         icon: IconHistory,
@@ -148,7 +143,9 @@ const groupedData: DataGroup[] = [
 ];
 
 export default function SettingsSidebar() {
-  const { t } = useTranslation();
+  // Optional integrations contribute entries whose labels live in their own
+  // namespace; i18next falls back across this list in order.
+  const { t } = useTranslation(["translation", "doocs"]);
   const location = useLocation();
   const [active, setActive] = useState(location.pathname);
   const { goBack } = useSettingsNavigation();
@@ -233,8 +230,8 @@ export default function SettingsSidebar() {
             case "Verified pages":
               prefetchHandler = prefetchVerifiedPages;
               break;
-            case "WeChat official accounts":
-              prefetchHandler = prefetchWechatAccounts;
+            case doocsSettingsNavItem.label:
+              prefetchHandler = prefetchDoocsSettings;
               break;
             default:
               break;

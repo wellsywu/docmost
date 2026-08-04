@@ -69,3 +69,27 @@ export function getMermaidThemeConfig(themeMode?: DiagramThemeMode) {
     themeVariables: isDark ? { darkMode: true } : { darkMode: false },
   }
 }
+
+/**
+ * Mermaid stacks two backdrops behind an edge label: the inner `span.edgeLabel`
+ * takes `edgeLabelBackground` as given, while the wrapping `div.labelBkg` takes
+ * `fade(edgeLabelBackground, 0.5)`. khroma resolves `fade('transparent', 0.5)`
+ * to `rgba(0, 0, 0, 0.5)`, so setting the variable to transparent clears the
+ * inner layer and turns the outer one into a half-black slab — which reads as
+ * the setting being ignored. Dropping the derived layer leaves the variable in
+ * sole control, so a diagram can set it through `%%{init}%%` and be obeyed.
+ */
+const EDGE_LABEL_BACKDROP_CSS = `.labelBkg{background-color:transparent!important}`
+
+/**
+ * Appends the overrides to the SVG's own stylesheet rather than the page's,
+ * because clipboard export serializes a detached clone and rasterizes it, at
+ * which point document styles no longer apply. `!important` is required since
+ * mermaid scopes its own rules by the SVG id, outranking a bare class.
+ */
+export function withControllableEdgeLabelBackground(svg: string): string {
+  return svg.replace(
+    /<svg\b[^>]*>/,
+    openTag => `${openTag}<style>${EDGE_LABEL_BACKDROP_CSS}</style>`,
+  )
+}

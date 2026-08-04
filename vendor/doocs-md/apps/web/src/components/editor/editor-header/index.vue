@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { Copy, Loader2, Menu, Palette } from '@lucide/vue'
+import { AlertTriangle, Check, Copy, ExternalLink, Loader2, Menu, Palette, Save } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'
 import { useEditorRefresh } from '@/composables/useEditorRefresh'
+import { docmostIntegration, downloadDocmostLocalDraft, hasUnsavedDocmostChanges, isDocmostMode, markDocmostDirty, reloadDocmostConflictVersion, saveDocmostContent } from '@/services/docmost'
+import { registerDocmostSaveShortcut } from '@/services/docmost/save-shortcut'
 import { generatePureHTML, processClipboardContent } from '@/services/export'
 import { useEditorStore } from '@/stores/editor'
 import { useExportStore } from '@/stores/export'
+import { usePostStore } from '@/stores/post'
 import { useRenderStore } from '@/stores/render'
 import { useThemeStore } from '@/stores/theme'
 import { useUIStore } from '@/stores/ui'
@@ -29,6 +32,7 @@ const ShareDialog = defineAsyncComponent(() => import('./ShareDialog.vue'))
 const PdfExportDialog = defineAsyncComponent(() => import('@/components/editor/dialogs/PdfExportDialog.vue'))
 
 const editorStore = useEditorStore()
+const postStore = usePostStore()
 const themeStore = useThemeStore()
 const renderStore = useRenderStore()
 const uiStore = useUIStore()
@@ -41,6 +45,30 @@ const { primaryColor } = storeToRefs(themeStore)
 const { isOpenRightSlider, isShowSyncDialog, isShowAccountDialog, isShowShareDialog, isShowPdfExportDialog, isShowAboutDialog, isShowFundDialog, isShowEditorStateDialog, isShowPreferencesDialog, isShowMarkdownHelpDialog, isShowKeyboardShortcutsDialog, copyMode } = storeToRefs(uiStore)
 
 const isCopying = ref(false)
+const isSavingDocmost = computed(() => docmostIntegration.saveStatus.value === `saving`)
+const showDocmostSave = computed(() => isDocmostMode() && docmostIntegration.status.value === `ready`)
+const canSaveDocmost = computed(() => showDocmostSave.value && docmostIntegration.canEdit.value)
+const docmostPagePath = computed(() => docmostIntegration.pagePath.value)
+const docmostSaveLabel = computed(() => {
+  switch (docmostIntegration.saveStatus.value) {
+    case `dirty`:
+      return t(`docmost.unsaved`)
+    case `saving`:
+      return t(`docmost.saving`)
+    case `saved`:
+      return t(`docmost.saved`)
+    case `conflict`:
+      return t(`docmost.conflict`)
+    case `expired`:
+      return t(`docmost.expired`)
+    case `readonly`:
+      return t(`docmost.readonly`)
+    case `error`:
+      return t(`docmost.saveFailed`)
+    default:
+      return t(`docmost.save`)
+  }
+})
 
 const { copy: copyContent } = useClipboard({
   legacy: true,
@@ -222,6 +250,85 @@ function copyToWeChat() {
   copyMode.value = 'txt'
   copy()
 }
+
+function currentMarkdown(): string {
+  editorStore.flushContentToPostStore()
+  return editor.value?.state.doc.toString() ?? postStore.currentPost?.content ?? ``
+}
+
+function currentTitle(): string {
+  return postStore.currentPost?.title ?? ``
+}
+
+async function saveToDocmost() {
+  if (!canSaveDocmost.value || isSavingDocmost.value)
+    return
+
+  try {
+    const title = currentTitle()
+    const markdown = currentMarkdown()
+    const acknowledgeRoundtripRisk = docmostIntegration.roundtripRisk.value.hasUnsupportedNodes
+      // eslint-disable-next-line no-alert
+      ? window.confirm(t(`docmost.roundtripConfirm`, {
+          types: docmostIntegration.roundtripRisk.value.unsupportedNodeTypes.join(`, `),
+        }))
+      : false
+    if (docmostIntegration.roundtripRisk.value.hasUnsupportedNodes && !acknowledgeRoundtripRisk)
+      return
+
+    await postStore.persistImmediately()
+    await saveDocmostContent(title, markdown, acknowledgeRoundtripRisk)
+    toast.success(t(`docmost.saved`))
+  }
+  catch {
+    const status = docmostIntegration.saveStatus.value
+    if (status === `conflict`)
+      toast.warning(t(`docmost.conflictMessage`))
+    else if (status === `expired`)
+      toast.error(t(`docmost.expiredMessage`))
+    else if (status === `readonly`)
+      toast.error(t(`docmost.readonlyMessage`))
+    else
+      toast.error(t(`docmost.saveFailedMessage`, { message: docmostIntegration.saveError.value }))
+  }
+}
+
+async function reloadDocmostVersion() {
+  await reloadDocmostConflictVersion()
+  toast.success(t(`docmost.reloaded`))
+}
+
+function downloadLocalDraft() {
+  downloadDocmostLocalDraft(currentTitle(), currentMarkdown())
+}
+
+watch(
+  () => [postStore.currentPost?.title ?? ``, postStore.currentPost?.content ?? ``] as const,
+  ([title, markdown]) => markDocmostDirty(title, markdown),
+)
+
+function onBeforeUnload(event: BeforeUnloadEvent) {
+  if (!hasUnsavedDocmostChanges())
+    return
+
+  event.preventDefault()
+  event.returnValue = ``
+}
+
+let unregisterDocmostSaveShortcut: (() => void) | undefined
+
+onMounted(() => {
+  unregisterDocmostSaveShortcut = registerDocmostSaveShortcut({
+    canSave: () => canSaveDocmost.value,
+    save: () => void saveToDocmost(),
+  })
+  window.addEventListener(`beforeunload`, onBeforeUnload)
+})
+
+onUnmounted(() => {
+  unregisterDocmostSaveShortcut?.()
+  window.removeEventListener(`beforeunload`, onBeforeUnload)
+})
 </script>
 
 <template>
@@ -260,6 +367,52 @@ function copyToWeChat() {
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
+      <Button
+        v-if="showDocmostSave"
+        variant="outline"
+        class="h-9"
+        :disabled="isSavingDocmost || !canSaveDocmost"
+        :aria-busy="isSavingDocmost"
+        @click="saveToDocmost"
+      >
+        <Loader2 v-if="isSavingDocmost" class="mr-2 h-4 w-4 animate-spin" />
+        <AlertTriangle v-else-if="['conflict', 'expired', 'readonly', 'error'].includes(docmostIntegration.saveStatus.value)" class="mr-2 h-4 w-4 text-destructive" />
+        <Check v-else-if="docmostIntegration.saveStatus.value === 'saved'" class="mr-2 h-4 w-4 text-green-600" />
+        <Save v-else class="mr-2 h-4 w-4" />
+        <span>{{ docmostSaveLabel }}</span>
+      </Button>
+
+      <Button
+        v-if="docmostPagePath"
+        as="a"
+        variant="outline"
+        class="h-9"
+        :href="docmostPagePath"
+        target="_blank"
+        rel="noopener noreferrer"
+        :title="t('docmost.openPageHint')"
+      >
+        <ExternalLink class="mr-2 h-4 w-4" />
+        <span>{{ t('docmost.openPage') }}</span>
+      </Button>
+
+      <span
+        v-if="docmostIntegration.roundtripRisk.value.hasUnsupportedNodes"
+        class="max-w-72 truncate text-xs text-destructive"
+        :title="t('docmost.roundtripWarning', { types: docmostIntegration.roundtripRisk.value.unsupportedNodeTypes.join(', ') })"
+      >
+        {{ t('docmost.roundtripWarning', { types: docmostIntegration.roundtripRisk.value.unsupportedNodeTypes.join(', ') }) }}
+      </span>
+
+      <template v-if="docmostIntegration.saveStatus.value === 'conflict'">
+        <Button variant="outline" class="h-9" @click="reloadDocmostVersion">
+          {{ t('docmost.reloadRemote') }}
+        </Button>
+        <Button variant="outline" class="h-9" @click="downloadLocalDraft">
+          {{ t('docmost.downloadDraft') }}
+        </Button>
+      </template>
+
       <Button
         variant="outline"
         class="h-9"

@@ -66,7 +66,7 @@ import {
   useUnwatchPageMutation,
 } from "@/features/page/queries/watcher-query";
 import { usePageShortcuts } from "@/features/shortcuts/hooks/use-page-shortcuts";
-import PublishToWeChat from "@/features/page/components/header/publish-to-wechat.tsx";
+import PublishToWeChat from "@/features/integrations/doocs/components/publish-button";
 
 interface PageHeaderMenuProps {
   readOnly?: boolean;

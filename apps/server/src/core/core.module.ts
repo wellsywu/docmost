@@ -26,7 +26,7 @@ import { SessionModule } from './session/session.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 import { ApiKeyModule } from './api-key/api-key.module';
-import { MdIntegrationModule } from '../integrations/md/md-integration.module';
+import { DOOCS_UNSCOPED_ROUTES } from '../integrations/doocs/doocs.routes';
 
 @Module({
   imports: [
@@ -48,7 +48,6 @@ import { MdIntegrationModule } from '../integrations/md/md-integration.module';
     WatcherModule,
     SessionModule,
     ApiKeyModule,
-    MdIntegrationModule,
   ],
 })
 export class CoreModule implements NestModule {
@@ -58,13 +57,7 @@ export class CoreModule implements NestModule {
       { path: 'health', method: RequestMethod.GET },
       { path: 'health/live', method: RequestMethod.GET },
       { path: 'billing/stripe/webhook', method: RequestMethod.POST },
-      { path: 'integrations/md/bootstrap', method: RequestMethod.POST },
-      { path: 'integrations/md/settings', method: RequestMethod.POST },
-      { path: 'integrations/md/settings/update', method: RequestMethod.POST },
-      {
-        path: 'integrations/md/sessions/revoke',
-        method: RequestMethod.POST,
-      },
+      ...DOOCS_UNSCOPED_ROUTES,
     ];
 
     consumer

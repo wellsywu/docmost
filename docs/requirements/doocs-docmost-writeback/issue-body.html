@@ -1,0 +1,34 @@
+<h2>问题</h2>
+<p>当前链路只在进入 Doocs 时把 Docmost 页面单向载入。Doocs 编辑后的正文保存在浏览器 IndexedDB，不会更新原 Docmost 页面。DOCMOST-28 明确将正文双向同步排除在原范围外，因此本项是独立的后续能力。</p>
+
+<h2>方案</h2>
+<ul>
+  <li>新增受 <code>DoocsSessionGuard</code> 保护的 <code>POST /api/integrations/doocs/content/update</code>。</li>
+  <li><code>pageId</code> 只能来自已签发的 <code>mdSession</code>，保存时重新校验页面编辑权限。</li>
+  <li>复用 Docmost <code>PageService</code> 的 Markdown 更新和 Yjs 协作链路，不直接更新数据库。</li>
+  <li>bootstrap 返回编辑权限、更新时间和内容哈希；保存使用乐观冲突检测，基线变化时返回 409。</li>
+  <li>第一版采用“本地自动保存 + 显式保存回 Docmost”，不启用无提示自动覆盖。</li>
+</ul>
+
+<h2>交互</h2>
+<ul>
+  <li>顶部提供“保存回 Docmost”按钮和 <code>Ctrl/Cmd+S</code>。</li>
+  <li>明确区分“本地草稿已保存”与“已同步到 Docmost”。</li>
+  <li>显示未修改、有未同步修改、保存中、已同步、保存失败和冲突状态。</li>
+  <li>发生冲突时允许重新加载 Docmost 版本或复制/下载当前 Markdown；第一版不提供一键强制覆盖。</li>
+  <li>会话过期或网络失败时保留本地草稿；只读页面禁用保存。</li>
+  <li>检测到无法无损转换的 Docmost 自定义节点时，保存前警告或阻止破坏性覆盖。</li>
+</ul>
+
+<h2>验收标准</h2>
+<ul data-type="taskList">
+  <li data-type="taskItem" data-checked="false">在 Doocs 编辑并显式保存后，原 Docmost 页面可看到更新后的正文和标题</li>
+  <li data-type="taskItem" data-checked="false">更新通过 Docmost 协作/Yjs 路径完成，已打开页面能够收到更新</li>
+  <li data-type="taskItem" data-checked="false">mdSession 只能回写绑定页面；无权限和过期会话分别被拒绝</li>
+  <li data-type="taskItem" data-checked="false">Docmost 基线发生变化时返回 409，原内容不被静默覆盖</li>
+  <li data-type="taskItem" data-checked="false">网络错误、会话过期和冲突情况下本地草稿仍可恢复</li>
+  <li data-type="taskItem" data-checked="false">不支持节点不会在无警告情况下被破坏性覆盖</li>
+</ul>
+
+<h2>方案文档</h2>
+<p><code>docs/requirements/doocs-docmost-writeback/</code>：<code>background.md</code>、<code>plan-a-explicit-save.md</code>。</p>

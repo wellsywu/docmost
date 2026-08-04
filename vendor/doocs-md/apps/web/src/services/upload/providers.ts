@@ -4,7 +4,8 @@ import * as tokenTools from '@md/shared/utils/tokenTools'
 import { base64encode, safe64, utf16to8 } from '@md/shared/utils/tokenTools'
 import { uuidv4 } from '@md/shared/utils/uuid'
 import { t } from '@/i18n/translate'
-import { uploadDocmostImage } from '@/services/docmost/client'
+import { toast } from '@/lib/toast'
+import { readDocmostUploadConfig, uploadDocmostImageWithConfig } from '@/services/docmost/client'
 import { uploadDefaultImage } from '@/services/upload/client'
 import { store } from '@/storage'
 import { addPrefix } from '@/storage/prefix'
@@ -504,14 +505,28 @@ async function mpFileUpload(file: File) {
 }
 
 async function docmostFileUpload(file: File): Promise<string> {
-  const accountId = await store.get(addPrefix(`mp-current-account-id`))
-  if (!accountId)
+  const config = await readDocmostUploadConfig()
+  const accountId = config.provider === `wechat`
+    ? await store.get(addPrefix(`mp-current-account-id`))
+    : null
+  if (config.provider === `wechat` && !accountId)
     throw new Error(t(`docmost.accountRequired`))
 
-  const response = await uploadDocmostImage(accountId, file)
-  if (!response.url)
+  const response = await uploadDocmostImageWithConfig(accountId, file)
+  if (response.publishAsset.status === `failed`) {
+    const reason = response.publishAsset.error ? `: ${response.publishAsset.error}` : ``
+    toast.warning(`Docmost image was inserted, but publishing is ${response.publishAsset.retryable ? `retryable` : `not available`}${reason}`)
+  }
+  // The editor content is what gets published elsewhere, so it carries the image
+  // host URL; the server maps it back to the attachment when saving to Docmost.
+  // Only a failed publish falls back to the Docmost URL, which at least keeps
+  // the image visible in the editor.
+  const url = response.publishAsset.status === `ready` && response.publishAsset.url
+    ? response.publishAsset.url
+    : response.attachment.url
+  if (!url)
     throw new Error(t(`upload.provider.uploadNoUrl`))
-  return response.url
+  return url
 }
 
 // -----------------------------------------------------------------------

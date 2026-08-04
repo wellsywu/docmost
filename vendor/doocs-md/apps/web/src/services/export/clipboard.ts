@@ -3,6 +3,7 @@ import { useEditorStore } from '@/stores/editor'
 import { useRenderStore } from '@/stores/render'
 import { useUIStore } from '@/stores/ui'
 import { createEmptyNode, modifyHtmlStructure, solveWeChatImage } from './clipboard-dom'
+import { uploadDocmostClipboardAssets } from './docmost-assets'
 import { getStylesToAdd } from './share-styles'
 import { prepareMathFormulasForWeChat, sanitizeSvgsForWeChat } from './wechat-svg'
 
@@ -75,6 +76,7 @@ export async function processClipboardContent(primaryColor: string) {
         `<span class="edgeLabel"$1>$2</span>`,
       )
 
+    await uploadDocmostClipboardAssets(clipboardDiv)
     solveWeChatImage(clipboardDiv)
 
     const beforeNode = createEmptyNode()

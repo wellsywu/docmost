@@ -16,6 +16,11 @@ function toStored(post: Post): StoredDocument {
     updateDatetime: new Date(post.updateDatetime).toISOString(),
     parentId: post.parentId ?? null,
     collapsed: post.collapsed,
+    docmostPageId: post.docmostPageId,
+    docmostSavedTitle: post.docmostSavedTitle,
+    docmostSavedMarkdown: post.docmostSavedMarkdown,
+    docmostUpdatedAt: post.docmostUpdatedAt,
+    docmostContentHash: post.docmostContentHash,
   }
 }
 
@@ -29,6 +34,11 @@ function fromStored(doc: StoredDocument): Post {
     updateDatetime: new Date(doc.updateDatetime),
     parentId: doc.parentId ?? null,
     collapsed: doc.collapsed,
+    docmostPageId: doc.docmostPageId,
+    docmostSavedTitle: doc.docmostSavedTitle,
+    docmostSavedMarkdown: doc.docmostSavedMarkdown,
+    docmostUpdatedAt: doc.docmostUpdatedAt,
+    docmostContentHash: doc.docmostContentHash,
   }
 }
 

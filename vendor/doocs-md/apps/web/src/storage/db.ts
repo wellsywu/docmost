@@ -19,6 +19,11 @@ export interface StoredDocument {
   updateDatetime: string
   parentId?: string | null
   collapsed?: boolean
+  docmostPageId?: string
+  docmostSavedTitle?: string
+  docmostSavedMarkdown?: string
+  docmostUpdatedAt?: number
+  docmostContentHash?: string
 }
 
 export interface KVRecord {

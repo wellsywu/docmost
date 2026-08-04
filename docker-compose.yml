@@ -13,11 +13,10 @@ services:
       APP_SECRET: 'REPLACE_WITH_LONG_SECRET'
       DATABASE_URL: 'postgresql://docmost:STRONG_DB_PASSWORD@db:5432/docmost'
       INTEGRATION_DATABASE_URL: 'postgresql://docmost:STRONG_DB_PASSWORD@db:5432/docmost_integrations'
+      # Browser-facing URL of the doocs editor. Empty or unset hides the
+      # "publish to WeChat" action in the page header.
       MD_EDITOR_URL: 'http://localhost:3080'
       REDIS_URL: 'redis://redis:6379'
-      # Browser-facing URL of the publisher profile below. Uncomment to show the
-      # "publish to WeChat" action in the page header.
-      # PUBLISHER_URL: 'http://localhost:3050'
     ports:
       - "3000:3000"
     restart: unless-stopped

@@ -55,6 +55,10 @@ import { markdownToHtml } from '@docmost/editor-ext';
 import { WatcherService } from '../../watcher/watcher.service';
 import { sql } from 'kysely';
 import { TransclusionService } from '../transclusion/transclusion.service';
+import {
+  collectDocmostAttachmentIds,
+  restoreDocmostAttachmentIds,
+} from '../utils/attachment-identity.util';
 
 @Injectable()
 export class PageService {
@@ -129,24 +133,27 @@ export class PageService {
       ydoc = createYdocFromJson(prosemirrorJson);
     }
 
-    const page = await this.pageRepo.insertPage({
-      slugId: generateSlugId(),
-      title: createPageDto.title,
-      position: await this.nextPagePosition(
-        createPageDto.spaceId,
-        parentPageId,
-      ),
-      icon: createPageDto.icon,
-      parentPageId: parentPageId,
-      spaceId: createPageDto.spaceId,
-      creatorId: userId,
-      workspaceId: workspaceId,
-      lastUpdatedById: userId,
-      isBase,
-      content,
-      textContent,
-      ydoc,
-    }, trx);
+    const page = await this.pageRepo.insertPage(
+      {
+        slugId: generateSlugId(),
+        title: createPageDto.title,
+        position: await this.nextPagePosition(
+          createPageDto.spaceId,
+          parentPageId,
+        ),
+        icon: createPageDto.icon,
+        parentPageId: parentPageId,
+        spaceId: createPageDto.spaceId,
+        creatorId: userId,
+        workspaceId: workspaceId,
+        lastUpdatedById: userId,
+        isBase,
+        content,
+        textContent,
+        ydoc,
+      },
+      trx,
+    );
 
     if (trx) {
       // Add the watcher inside the caller's transaction so the async worker
@@ -277,12 +284,39 @@ export class PageService {
     user: User,
   ): Promise<void> {
     const prosemirrorJson = await this.parseProsemirrorContent(content, format);
+    const attachmentIds = collectDocmostAttachmentIds(prosemirrorJson);
+    if (attachmentIds.length > 0) {
+      const attachments = await this.attachmentRepo.findByIds(attachmentIds);
+      restoreDocmostAttachmentIds(
+        prosemirrorJson,
+        attachments.filter(
+          (attachment) =>
+            attachment.pageId === pageId &&
+            attachment.workspaceId === user.workspaceId &&
+            !attachment.deletedAt,
+        ),
+      );
+    }
 
     const documentName = `page.${pageId}`;
     await this.collaborationGateway.handleYjsEvent(
       'updatePageContent',
       documentName,
       { operation, prosemirrorJson, user },
+    );
+  }
+
+  /**
+   * Persist any edits still buffered in the live Y.Doc, so a subsequent read of
+   * the `pages` row sees the current document instead of a snapshot that can be
+   * up to `maxDebounce` old. Callers that compare stored content against a
+   * client-held baseline must do this first.
+   */
+  async flushPageContent(pageId: string, user: User): Promise<void> {
+    await this.collaborationGateway.handleYjsEvent(
+      'flushPageContent',
+      `page.${pageId}`,
+      { user },
     );
   }
 

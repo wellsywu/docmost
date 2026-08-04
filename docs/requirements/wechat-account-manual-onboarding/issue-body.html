@@ -1,0 +1,56 @@
+<div>
+<h2>背景</h2>
+<p>当前添加公众号需要填写账号名称、AppID、AppSecret，并手动切换“已认证”。实际获取微信 <code>stable_token</code> 只依赖 AppID 与 AppSecret；账号名称只是本地展示信息，“已认证”目前也是本地布尔值，并不会向微信验证。</p>
+
+<h2>为什么做</h2>
+<ul>
+  <li>减少首次接入需要理解的字段。</li>
+  <li>避免把用户手动开关误解成微信认证结果。</li>
+  <li>在保存时验证凭据，提前暴露 AppSecret 错误和出口 IP 白名单问题。</li>
+</ul>
+
+<h2>为什么优先级低</h2>
+<p>现有 AppID/AppSecret 方式已经可用，并且即使以后增加扫码授权，它仍需要作为高级备用方式保留。本项主要改善交互和错误反馈，不阻塞当前 Doocs 集成。</p>
+
+<h2>交互方案</h2>
+<pre><code class="language-mermaid">flowchart TD
+classDef blue fill:#3B82F6,stroke:#60A5FA,color:#fff,rx:15,ry:15
+classDef red fill:#DC2626,stroke:#F87171,color:#fff,rx:15,ry:15
+classDef purple fill:#7C3AED,stroke:#A78BFA,color:#fff,rx:15,ry:15
+classDef orange fill:#EA580C,stroke:#FB923C,color:#fff,rx:15,ry:15
+classDef green fill:#16A34A,stroke:#4ADE80,color:#fff,rx:15,ry:15
+classDef slate fill:#475569,stroke:#94A3B8,color:#fff,rx:15,ry:15
+classDef amber fill:#D97706,stroke:#FCD34D,color:#fff,rx:15,ry:15
+start(["管理员添加公众号"]):::slate
+input["输入 AppID 和 AppSecret"]:::amber
+validate["服务端请求微信验证凭据"]:::blue
+valid{"凭据是否有效？"}:::blue
+error["显示凭据或 IP 白名单错误"]:::red
+encrypt["加密保存 AppSecret"]:::orange
+status["显示凭据已验证状态"]:::green
+rename["可选：修改展示名称"]:::slate
+done(["账号可用于微信图片上传"]):::green
+start --> input --> validate --> valid
+valid -->|"否"| error --> input
+valid -->|"是"| encrypt --> status --> rename --> done
+linkStyle default stroke:#0891b2,stroke-width:2px;</code></pre>
+
+<h2>验收标准</h2>
+<ul data-type="taskList">
+  <li data-type="taskItem" data-checked="false">新增账号时只有 AppID 和 AppSecret 为必填项，账号名称可在验证成功后自动生成或另行修改</li>
+  <li data-type="taskItem" data-checked="false">移除用户手动控制的“已认证”开关，并区分“凭据有效”与微信官方认证类型</li>
+  <li data-type="taskItem" data-checked="false">保存前由服务端验证微信凭据，错误时明确区分凭据无效、网络失败和出口 IP 不在白名单</li>
+  <li data-type="taskItem" data-checked="false">验证成功后 AppSecret 加密入库，列表、编辑和错误响应均不回显明文</li>
+  <li data-type="taskItem" data-checked="false">已有账号无需迁移即可继续使用，并支持主动重新验证</li>
+</ul>
+
+<h2>不在本条范围内</h2>
+<ul>
+  <li>微信开放平台扫码授权</li>
+  <li>模拟登录微信公众号后台或保存浏览器 Cookie</li>
+  <li>公众号草稿和正式发布 API</li>
+</ul>
+
+<h2>需求文档</h2>
+<p><code>docs/requirements/wechat-account-manual-onboarding/</code></p>
+</div>

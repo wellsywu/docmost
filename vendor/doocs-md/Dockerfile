@@ -11,7 +11,10 @@ COPY patches ./patches
 COPY scripts ./scripts
 
 RUN pnpm install --frozen-lockfile
-RUN pnpm web build:h5-netlify
+# Plain `build` keeps vite's default base of /md/ (see apps/web/vite.config.ts);
+# build:h5-netlify sets SERVER_ENV=NETLIFY, which forces base to / and breaks
+# asset resolution when the SPA is served under the /md/ subpath.
+RUN pnpm web build
 
 FROM nginx:1.27-alpine
 

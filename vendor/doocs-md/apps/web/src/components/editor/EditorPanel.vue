@@ -7,6 +7,7 @@ import { defineAsyncComponent } from 'vue'
 import SlashCommandMenu from '@/components/editor/SlashCommandMenu.vue'
 import { SearchTab } from '@/components/ui/search-tab'
 import { createComponentCompletionExtension } from '@/composables/useComponentCompletion'
+import { useEditorPostBinding } from '@/composables/useEditorPostBinding'
 import { useEditorRefresh } from '@/composables/useEditorRefresh'
 import { useImageUploader } from '@/composables/useImageUploader'
 import { completeInitialPreviewBoot } from '@/composables/useInitialPreviewBoot'
@@ -63,7 +64,7 @@ function onWrapperContextMenuCapture(e: MouseEvent) {
 
 const { editor } = storeToRefs(editorStore)
 const { isDark } = storeToRefs(uiStore)
-const { posts, currentPostIndex, currentPost } = storeToRefs(postStore)
+const { posts, currentPostId, currentPost } = storeToRefs(postStore)
 const {
   isMobile,
   enableImageReupload,
@@ -82,7 +83,13 @@ const historyCompartment = new Compartment()
 function editorPlaceholder() {
   return placeholder(t(`codemirror.contentPlaceholder`))
 }
-const persistTimer = ref<ReturnType<typeof setTimeout>>()
+const postBinding = useEditorPostBinding({
+  posts,
+  currentPostId,
+  readBuffer: () => codeMirrorView.value?.state.doc.toString() ?? null,
+  writeBuffer: content => syncEditorToPostContent(content),
+})
+const commitEditorContentToPost = postBinding.commit
 
 const editorRef = useTemplateRef<HTMLDivElement>(`editorRef`)
 const codeMirrorWrapper = useTemplateRef<HTMLDivElement>(`codeMirrorWrapper`)
@@ -177,7 +184,7 @@ async function beforeImageUpload(file: File) {
   await store.set(`imgHost`, imgHost)
 
   const config = await store.get(`${imgHost}Config`)
-  const isValidHost = imgHost === `default` || config
+  const isValidHost = imgHost === `default` || imgHost === `docmost` || config
   if (!isValidHost) {
     const hostLabel = uploadHostOptions.value.find(option => option.value === imgHost)?.label ?? imgHost
     toast.error(t('editorPanel.configureImgHost', { host: hostLabel }))
@@ -199,6 +206,7 @@ function uploaded(imageUrl: string) {
   const markdownImage = `![](${imageUrl})`
   if (codeMirrorView.value) {
     codeMirrorView.value.dispatch(codeMirrorView.value.state.replaceSelection(`\n${markdownImage}\n`))
+    commitEditorContentToPost()
   }
   toast.success(t('editorPanel.uploadSuccess'))
 }
@@ -320,6 +328,7 @@ async function uploadMdImg({
     codeMirrorView.value.dispatch({
       changes: { from: 0, to: codeMirrorView.value.state.doc.length, insert: md.str },
     })
+    commitEditorContentToPost()
   }
 }
 
@@ -418,6 +427,7 @@ function createPasteHandler() {
                   view.dispatch({
                     changes: { from: pos, to: pos + searchStr.length, insert: newText },
                   })
+                  commitEditorContentToPost()
                 }
               }
             }
@@ -435,6 +445,7 @@ function createPasteHandler() {
                   view.dispatch({
                     changes: { from: pos, to: pos + searchStr.length, insert: newText },
                   })
+                  commitEditorContentToPost()
                 }
               }
             }
@@ -454,7 +465,7 @@ function createPasteHandler() {
 // --- CodeMirror creation ---
 function createFormTextArea(dom: HTMLDivElement) {
   const state = EditorState.create({
-    doc: posts.value[currentPostIndex.value].content,
+    doc: currentPost.value?.content ?? ``,
     extensions: [
       markdownSetup({
         onSearch: openSearchWithSelection,
@@ -472,10 +483,7 @@ function createFormTextArea(dom: HTMLDivElement) {
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           scheduleEditorRefresh()
-          clearTimeout(persistTimer.value)
-          persistTimer.value = setTimeout(() => {
-            commitEditorContentToPost()
-          }, 300)
+          postBinding.scheduleCommit()
         }
       }),
       EditorView.domEventHandlers({
@@ -514,25 +522,6 @@ async function preloadMathJaxIfNeeded(content: string) {
 
 let postSwitchGeneration = 0
 
-function flushEditorContentToPostAtIndex(index: number) {
-  clearTimeout(persistTimer.value)
-  persistTimer.value = undefined
-  if (!codeMirrorView.value || index < 0)
-    return
-
-  const value = codeMirrorView.value.state.doc.toString()
-  const post = posts.value[index]
-  if (!post || value === post.content)
-    return
-
-  post.updateDatetime = new Date()
-  post.content = value
-}
-
-function commitEditorContentToPost() {
-  flushEditorContentToPostAtIndex(currentPostIndex.value)
-}
-
 onMounted(() => {
   const editorDom = editorRef.value
   if (editorDom == null) {
@@ -553,8 +542,9 @@ onMounted(() => {
     const editorView = createFormTextArea(editorDom)
     editor.value = editorView
     editorStore.registerContentFlush(commitEditorContentToPost)
+    postBinding.bindCurrentPost()
 
-    const content = posts.value[currentPostIndex.value]?.content ?? ``
+    const content = currentPost.value?.content ?? ``
     await preloadMathJaxIfNeeded(content)
 
     editorRefresh()
@@ -602,43 +592,25 @@ function syncEditorToPostContent(content: string) {
   })
 }
 
-watch(currentPostIndex, (newIndex, oldIndex) => {
-  if (oldIndex !== undefined && oldIndex >= 0)
-    flushEditorContentToPostAtIndex(oldIndex)
-
-  const post = posts.value[newIndex]
-  if (!post)
-    return
-  syncEditorToPostContent(post.content)
-})
-
-/** Refresh editor when posts change externally (e.g. cloud sync) even if index is unchanged */
-watch(
-  () => currentPost.value?.content,
-  (content) => {
-    if (content == null)
-      return
-    syncEditorToPostContent(content)
-  },
-)
-
 const historyTimer = ref<ReturnType<typeof setTimeout>>()
 onMounted(() => {
   historyTimer.value = setInterval(() => {
-    const currentPost = posts.value[currentPostIndex.value]
+    const post = currentPost.value
+    if (!post)
+      return
 
-    const pre = (currentPost.history || [])[0]?.content
-    if (pre === currentPost.content) {
+    const pre = (post.history || [])[0]?.content
+    if (pre === post.content) {
       return
     }
 
-    currentPost.history ??= []
-    currentPost.history.unshift({
-      content: currentPost.content,
+    post.history ??= []
+    post.history.unshift({
+      content: post.content,
       datetime: toStoredDateTime(),
     })
 
-    currentPost.history.length = Math.min(currentPost.history.length, 10)
+    post.history.length = Math.min(post.history.length, 10)
   }, 30 * 1000)
 })
 
@@ -646,7 +618,7 @@ onUnmounted(() => {
   editorStore.unregisterContentFlush()
   window.removeEventListener(MATHJAX_READY_EVENT, handleMathJaxReady)
   clearTimeout(historyTimer.value)
-  clearTimeout(persistTimer.value)
+  postBinding.cancelScheduledCommit()
   document.removeEventListener(`keydown`, handleGlobalKeydown, { capture: false })
 })
 

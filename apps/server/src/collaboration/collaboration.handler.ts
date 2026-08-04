@@ -75,6 +75,48 @@ export class CollaborationHandler {
           },
         );
       },
+      /**
+       * Force the in-memory Y.Doc to disk right now.
+       *
+       * Browser edits are stored through the debouncer (`debounce` / `maxDebounce`
+       * in CollaborationGateway), so the `pages` row can trail the live document by
+       * tens of seconds. Anything that reads the row as a source of truth — such as
+       * an optimistic-lock baseline — has to flush first or it will read a stale
+       * snapshot and either report a false conflict or overwrite unseen edits.
+       *
+       * A no-op when the document is not loaded here: nothing is buffered, so the
+       * row is already current. The store hook skips the write when the content
+       * did not change, so this never bumps `updatedAt` on its own.
+       */
+      flushPageContent: async (
+        documentName: string,
+        payload: { user: User },
+      ) => {
+        const document = hocuspocus.documents.get(documentName);
+        if (!document) {
+          return;
+        }
+        // Prefer a live connection's context so `lastUpdatedById` keeps naming
+        // whoever actually typed the buffered changes, not whoever asked for the
+        // flush.
+        const context = document.getConnections()[0]?.context ?? {
+          user: payload.user,
+        };
+        await hocuspocus.storeDocumentHooks(
+          document,
+          {
+            instance: hocuspocus,
+            clientsCount: document.getConnectionsCount(),
+            context,
+            document,
+            documentName,
+            requestHeaders: {},
+            requestParameters: new URLSearchParams(),
+            socketId: 'server',
+          },
+          true,
+        );
+      },
       updatePageContent: async (
         documentName: string,
         payload: {

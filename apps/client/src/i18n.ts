@@ -17,6 +17,11 @@ i18n
     showSupportNotice: false,
     load: 'currentOnly',
 
+    // Optional integrations ship their own namespace so their strings never
+    // land in translation.json, which is synced from upstream Docmost.
+    ns: ["translation", "doocs"],
+    defaultNS: "translation",
+
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default
     },

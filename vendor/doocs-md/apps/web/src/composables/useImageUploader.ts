@@ -1,8 +1,10 @@
 import { toBase64 } from '@md/shared/utils/fileHelpers'
 import { ref } from 'vue'
 import { t } from '@/i18n/translate'
+import { getDocmostSessionToken } from '@/services/docmost/session'
 import { fileUpload } from '@/services/upload'
 import { store } from '@/storage'
+import { addPrefix } from '@/storage/prefix'
 
 const STORAGE_KEY = `uploaded_image_map`
 
@@ -18,6 +20,27 @@ export function useImageUploader() {
     const map = await getStorageMap()
     map[hash] = url
     await store.setJSON(STORAGE_KEY, map)
+  }
+
+  const calculateStringHash = async (value: string): Promise<string> => {
+    const digest = await crypto.subtle.digest(`SHA-256`, new TextEncoder().encode(value))
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, `0`)).join(``)
+  }
+
+  const getUploadCacheScope = async (): Promise<string> => {
+    const imgHost = await store.get(`imgHost`) || `default`
+    if (imgHost !== `docmost`)
+      return imgHost
+
+    const provider = await store.get(`docmostUploadProvider`) || `wechat`
+    const accountId = provider === `wechat`
+      ? await store.get(addPrefix(`mp-current-account-id`)) || `no-account`
+      : `server`
+    const sessionToken = getDocmostSessionToken()
+    const sessionScope = sessionToken
+      ? await calculateStringHash(sessionToken)
+      : `no-session`
+    return `${imgHost}:${sessionScope}:${provider}:${accountId}`
   }
 
   // SHA-256 for Blob/File via Web Crypto (replaces spark-md5)
@@ -78,7 +101,7 @@ export function useImageUploader() {
         file = resource
       }
 
-      const hash = await calculateHash(file)
+      const hash = `${await getUploadCacheScope()}:${await calculateHash(file)}`
 
       const cache = await getStorageMap()
       if (cache[hash])

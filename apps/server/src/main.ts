@@ -14,6 +14,7 @@ import fastifyIp from 'fastify-ip';
 import { InternalLogFilter } from './common/logger/internal-log-filter';
 import { EnvironmentService } from './integrations/environment/environment.service';
 import { resolveFrameHeader } from './common/helpers';
+import { DOOCS_UNSCOPED_PATHS } from './integrations/doocs/doocs.routes';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -118,9 +119,7 @@ async function bootstrap() {
         '/api/workspace/create',
         '/api/workspace/joined',
         '/api/workspace/find-by-email',
-        '/api/integrations/md/bootstrap',
-        '/api/integrations/md/settings',
-        '/api/integrations/md/sessions',
+        ...DOOCS_UNSCOPED_PATHS,
       ];
 
       if (

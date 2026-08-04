@@ -51,6 +51,11 @@ docs/*
 docs/requirements/*
 !docs/requirements/docmost-wechat-publisher/
 !docs/requirements/doocs-md-integration/
+!docs/requirements/doocs-settings-discoverability/
+!docs/requirements/doocs-docmost-writeback/
+!docs/requirements/doocs-dual-image-upload/
+!docs/requirements/wechat-account-manual-onboarding/
+!docs/requirements/wechat-open-platform-qr-authorization/
 # Anchored to the repo root: the deployment helpers stay local, but nested
 # scripts/ dirs (e.g. vendor/doocs-md/scripts, needed by its Dockerfile) must
 # be tracked or `git archive HEAD` ships an unbuildable tree.
@@ -61,5 +66,6 @@ deploy/
 .deploy/
 
 *.test.*
+!vendor/doocs-md/apps/web/src/services/docmost/save-shortcut.test.ts
 !apps/publisher/test/**
 AGENT.md
