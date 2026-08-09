@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDefined,
@@ -118,4 +119,51 @@ export class PublishDoocsAttachmentDto {
   @IsOptional()
   @IsUUID()
   accountId?: string;
+}
+
+export class DoocsWechatCredentialsDto {
+  @IsOptional()
+  @IsUUID()
+  accountId?: string;
+}
+
+export class DoocsPublishAssetEntryDto {
+  @IsUUID()
+  attachmentId: string;
+
+  /**
+   * Long enough for an mmbiz URL with its query, short enough that nothing else
+   * fits. The host itself is checked server side.
+   */
+  @IsString()
+  @MaxLength(2048)
+  url: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  mediaId?: string;
+}
+
+export class RegisterDoocsPublishAssetsDto {
+  @IsOptional()
+  @IsUUID()
+  accountId?: string;
+
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => DoocsPublishAssetEntryDto)
+  assets: DoocsPublishAssetEntryDto[];
+}
+
+export class LookupDoocsPublishAssetsDto {
+  @IsOptional()
+  @IsUUID()
+  accountId?: string;
+
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsUUID('all', { each: true })
+  attachmentIds: string[];
 }

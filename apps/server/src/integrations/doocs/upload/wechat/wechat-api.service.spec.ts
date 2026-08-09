@@ -80,6 +80,64 @@ describe('WechatApiService', () => {
     expect(serialized).not.toContain(accessToken);
   });
 
+  it('routes token and image requests through the configured proxy origin', async () => {
+    const urls: string[] = [];
+    const fetchMock = jest.fn(async (input: URL | RequestInfo) => {
+      const url = new URL(input.toString());
+      urls.push(`${url.origin}${url.pathname}`);
+      return url.pathname.endsWith('/stable_token')
+        ? jsonResponse({ access_token: accessToken, expires_in: 7200 })
+        : jsonResponse({ url: 'https://mmbiz.qpic.cn/safe-image' });
+    });
+    const service = new WechatApiService(fetchMock as never);
+
+    await service.uploadImage(
+      {
+        ...credentials,
+        proxyOrigin: 'https://wechat-proxy.example.com/gateway',
+      },
+      jpeg,
+      'image/jpeg',
+      'image.jpg',
+    );
+
+    expect(urls).toEqual([
+      'https://wechat-proxy.example.com/gateway/cgi-bin/stable_token',
+      'https://wechat-proxy.example.com/gateway/cgi-bin/media/uploadimg',
+    ]);
+  });
+
+  it('refreshes the token when the configured proxy origin changes', async () => {
+    const tokenOrigins: string[] = [];
+    const fetchMock = jest.fn(async (input: URL | RequestInfo) => {
+      const url = new URL(input.toString());
+      if (url.pathname.endsWith('/stable_token')) {
+        tokenOrigins.push(url.origin);
+        return jsonResponse({ access_token: accessToken, expires_in: 7200 });
+      }
+      return jsonResponse({ url: 'https://mmbiz.qpic.cn/safe-image' });
+    });
+    const service = new WechatApiService(fetchMock as never);
+
+    await service.uploadImage(
+      { ...credentials, proxyOrigin: 'https://proxy-a.example.com' },
+      jpeg,
+      'image/jpeg',
+      'one.jpg',
+    );
+    await service.uploadImage(
+      { ...credentials, proxyOrigin: 'https://proxy-b.example.com' },
+      jpeg,
+      'image/jpeg',
+      'two.jpg',
+    );
+
+    expect(tokenOrigins).toEqual([
+      'https://proxy-a.example.com',
+      'https://proxy-b.example.com',
+    ]);
+  });
+
   it('refreshes a cached token before it reaches expiry', async () => {
     const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
     let tokenNumber = 0;
@@ -200,6 +258,56 @@ describe('WechatApiService', () => {
 
     expect(error).toBeInstanceOf(WechatApiException);
     expect(error.errcode).toBe('network ENOTFOUND');
+    expect(error.message).toBe(
+      'Docmost server could not reach the WeChat API (ENOTFOUND)',
+    );
+  });
+
+  it('identifies a proxy transport failure as server-to-proxy connectivity', async () => {
+    const fetchMock = jest.fn(async () => {
+      throw Object.assign(new TypeError('fetch failed'), {
+        cause: Object.assign(new Error('Connect Timeout Error'), {
+          code: 'UND_ERR_CONNECT_TIMEOUT',
+        }),
+      });
+    });
+    const service = new WechatApiService(fetchMock as never);
+
+    const error = await service
+      .uploadImage(
+        {
+          ...credentials,
+          proxyOrigin: 'https://wechat-proxy.example.com',
+        },
+        jpeg,
+        'image/jpeg',
+        'image.jpg',
+      )
+      .catch((caught) => caught);
+
+    expect(error.errcode).toBe('network UND_ERR_CONNECT_TIMEOUT');
+    expect(error.message).toBe(
+      'Docmost server could not reach the configured WeChat proxy (UND_ERR_CONNECT_TIMEOUT)',
+    );
+  });
+
+  it('bounds every upstream request with a timeout signal', async () => {
+    const signals: (AbortSignal | null | undefined)[] = [];
+    const fetchMock = jest.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        signals.push(init?.signal);
+        const url = new URL(input.toString());
+        return url.pathname === '/cgi-bin/stable_token'
+          ? jsonResponse({ access_token: accessToken, expires_in: 7200 })
+          : jsonResponse({ url: 'https://mmbiz.qpic.cn/safe-image' });
+      },
+    );
+    const service = new WechatApiService(fetchMock as never);
+
+    await service.uploadImage(credentials, jpeg, 'image/jpeg', 'image.jpg');
+
+    expect(signals).toHaveLength(2);
+    expect(signals.every((signal) => signal instanceof AbortSignal)).toBe(true);
   });
 
   it('separates an origin answering with an unreadable body from an unreachable one', async () => {

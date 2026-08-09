@@ -19,6 +19,42 @@ export function buildAttachmentUrl(
 }
 
 /**
+ * The doocs editor runs on its own origin and holds only an `mdSession` bearer
+ * token, which `/api/files/:id` (JwtAuthGuard) does not accept — and an `<img>`
+ * cannot send a bearer header anyway. Docmost's existing attachment token, bound
+ * to this attachment and page, is what lets the browser render the image.
+ */
+export function buildPublicAttachmentUrl(opts: {
+  appUrl: string;
+  attachmentId: string;
+  fileName: string;
+  token: string;
+}): string {
+  const base = opts.appUrl.replace(/\/+$/, '');
+  const name = encodeURIComponent(opts.fileName);
+  return `${base}/api/files/public/${opts.attachmentId}/${name}?jwt=${encodeURIComponent(opts.token)}`;
+}
+
+const PUBLIC_FILE_URL =
+  /\/api\/files\/public\/([0-9a-fA-F-]{36})\/([^/?#]+)(?:\?[^#]*)?$/;
+
+/**
+ * Reverse of {@link buildPublicAttachmentUrl}. The Docmost page must never store
+ * one of these: the token in the query expires, and the absolute origin would
+ * break the moment APP_URL changes.
+ */
+export function restorePublicAttachmentUrls(content: unknown): void {
+  visit(content, (node) => {
+    const src = imageSrc(node);
+    if (!src || !node.attrs) return;
+    const match = PUBLIC_FILE_URL.exec(src);
+    if (match) {
+      node.attrs.src = `/api/files/${match[1]}/${match[2]}`;
+    }
+  });
+}
+
+/**
  * Publish URLs travel through a Markdown roundtrip and a browser, so the only
  * part that reliably survives is everything after the scheme — WeChat hands out
  * `http://mmbiz.qpic.cn/...` while the editor and mixed-content rules routinely

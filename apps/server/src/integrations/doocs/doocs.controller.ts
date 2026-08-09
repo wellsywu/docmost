@@ -25,7 +25,10 @@ import { FileInterceptor } from '../../common/interceptors/file.interceptor';
 import {
   BootstrapDoocsDto,
   CreateDoocsTicketDto,
+  DoocsWechatCredentialsDto,
+  LookupDoocsPublishAssetsDto,
   PublishDoocsAttachmentDto,
+  RegisterDoocsPublishAssetsDto,
   UpdateDoocsContentDto,
   UpdateDoocsUploadConfigDto,
   UpdateDoocsSettingsDto,
@@ -177,6 +180,52 @@ export class DoocsController {
     @DoocsSession() session: DoocsSessionPrincipal,
   ) {
     return this.uploads.publishFile(request, session);
+  }
+
+  /**
+   * Browser-side WeChat publishing. The editor asks for the account's upload
+   * credentials, does the upload itself the way standalone doocs does, then
+   * reports the resulting image-host URL back here.
+   */
+  @Public()
+  @UseGuards(DoocsSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('upload/wechat-credentials')
+  getWechatCredentials(
+    @Body() dto: DoocsWechatCredentialsDto,
+    @DoocsSession() session: DoocsSessionPrincipal,
+  ) {
+    return this.uploads.getWechatUploadCredentials(dto.accountId, session);
+  }
+
+  @Public()
+  @UseGuards(DoocsSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('upload/publish-assets')
+  registerPublishAssets(
+    @Body() dto: RegisterDoocsPublishAssetsDto,
+    @DoocsSession() session: DoocsSessionPrincipal,
+  ) {
+    return this.uploads.registerPublishAssets(
+      dto.assets,
+      dto.accountId,
+      session,
+    );
+  }
+
+  @Public()
+  @UseGuards(DoocsSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('upload/publish-assets/lookup')
+  lookupPublishAssets(
+    @Body() dto: LookupDoocsPublishAssetsDto,
+    @DoocsSession() session: DoocsSessionPrincipal,
+  ) {
+    return this.uploads.lookupPublishAssets(
+      dto.attachmentIds,
+      dto.accountId,
+      session,
+    );
   }
 
   @Public()

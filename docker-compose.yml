@@ -16,6 +16,14 @@ services:
       # Browser-facing URL of the doocs editor. Empty or unset hides the
       # "publish to WeChat" action in the page header.
       MD_EDITOR_URL: 'http://localhost:3080'
+      # Origin the editor's browser loads Docmost images from. Defaults to
+      # APP_URL; set it when the deployment answers on more than one hostname.
+      DOOCS_ATTACHMENT_BASE_URL: '${DOOCS_ATTACHMENT_BASE_URL:-}'
+      # Optional egress proxy for the WeChat account connection test, the only
+      # WeChat call this container still makes.
+      HTTP_PROXY: '${HTTP_PROXY:-}'
+      HTTPS_PROXY: '${HTTPS_PROXY:-}'
+      NO_PROXY: '${NO_PROXY:-}'
       REDIS_URL: 'redis://redis:6379'
     ports:
       - "3000:3000"

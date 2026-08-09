@@ -1,9 +1,11 @@
 import {
   applyPublishUrls,
   buildAttachmentUrl,
+  buildPublicAttachmentUrl,
   collectImageSrcs,
   publishUrlKey,
   restoreAttachmentUrls,
+  restorePublicAttachmentUrls,
 } from './doocs-image-url.util';
 
 const attachmentId = '0f1d4a1e-6f4d-4a2c-9d0e-2f8e8f7c1a11';
@@ -159,6 +161,71 @@ describe('doocs image url util', () => {
     it('builds the canonical docmost attachment url', () => {
       expect(buildAttachmentUrl(attachmentId, 'photo.png')).toBe(
         `/api/files/${attachmentId}/photo.png`,
+      );
+    });
+  });
+
+  describe('buildPublicAttachmentUrl', () => {
+    const build = (appUrl: string, fileName = 'photo.png') =>
+      buildPublicAttachmentUrl({
+        appUrl,
+        attachmentId,
+        fileName,
+        token: 'signed-token',
+      });
+
+    it('builds an absolute url an img tag on another origin can load', () => {
+      expect(build('https://docmost.example.com')).toBe(
+        `https://docmost.example.com/api/files/public/${attachmentId}/photo.png?jwt=signed-token`,
+      );
+    });
+
+    it('does not double the slash when the app url has a trailing one', () => {
+      expect(build('https://docmost.example.com/')).toBe(
+        `https://docmost.example.com/api/files/public/${attachmentId}/photo.png?jwt=signed-token`,
+      );
+    });
+
+    it('encodes a file name that would otherwise break the path', () => {
+      expect(build('https://docmost.example.com', 'my photo #1.png')).toContain(
+        'my%20photo%20%231.png',
+      );
+    });
+  });
+
+  describe('restorePublicAttachmentUrls', () => {
+    it('takes a signed url back to the attachment url the page stores', () => {
+      const content = doc(
+        `https://docmost.example.com/api/files/public/${attachmentId}/photo.png?jwt=signed-token`,
+      );
+
+      restorePublicAttachmentUrls(content);
+
+      // Neither the expiring token nor the absolute origin belongs in a page.
+      expect(content.content[1].attrs.src).toBe(
+        `/api/files/${attachmentId}/photo.png`,
+      );
+    });
+
+    it('keeps the encoded file name so the attachment still resolves', () => {
+      const content = doc(
+        `https://docmost.example.com/api/files/public/${attachmentId}/my%20photo%20%231.png?jwt=t`,
+      );
+
+      restorePublicAttachmentUrls(content);
+
+      expect(content.content[1].attrs.src).toBe(
+        `/api/files/${attachmentId}/my%20photo%20%231.png`,
+      );
+    });
+
+    it('leaves a third-party image alone', () => {
+      const content = doc('https://cdn.example.com/photo.png');
+
+      restorePublicAttachmentUrls(content);
+
+      expect(content.content[1].attrs.src).toBe(
+        'https://cdn.example.com/photo.png',
       );
     });
   });

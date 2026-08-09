@@ -75,6 +75,9 @@ function createService(options: {
           Promise.resolve({ url: 'https://cdn.example.com/photo.png' }),
       ),
   };
+  const tokens = {
+    generateAttachmentToken: jest.fn().mockResolvedValue('attachment-jwt'),
+  };
   const service = new DoocsUploadService(
     db as never,
     { findById: jest.fn() } as never,
@@ -82,13 +85,27 @@ function createService(options: {
     { uploadPageFileFromBuffer: jest.fn() } as never,
     storage as never,
     { decrypt: jest.fn() } as never,
-    { uploadImage: jest.fn() } as never,
     uploadConfig as never,
     s3 as never,
-    { getFileUploadSizeLimit: jest.fn().mockReturnValue('50mb') } as never,
+    {
+      getFileUploadSizeLimit: jest.fn().mockReturnValue('50mb'),
+      getDoocsAttachmentBaseUrl: jest
+        .fn()
+        .mockReturnValue('https://docmost.example.com'),
+    } as never,
+    tokens as never,
     { log: jest.fn() } as never,
   );
-  return { service, assets, insert, attachmentRepo, storage, s3 };
+  return {
+    service,
+    assets,
+    insert,
+    attachmentRepo,
+    storage,
+    s3,
+    uploadConfig,
+    tokens,
+  };
 }
 
 describe('DoocsUploadService publish handoff', () => {

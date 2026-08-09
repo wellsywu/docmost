@@ -21,6 +21,7 @@ import {
   applyPublishUrls,
   collectImageSrcs,
   restoreAttachmentUrls,
+  restorePublicAttachmentUrls,
 } from './upload/doocs-image-url.util';
 import { DoocsUploadService } from './upload/doocs-upload.service';
 import { WechatAccountService } from './accounts/wechat-account.service';
@@ -270,26 +271,16 @@ export class DoocsService {
       return { markdown: jsonToMarkdown(page.content), imageSync: empty };
     }
 
-    const imageSync: DoocsImageSync = {
-      total: attachmentIds.length,
-      ready: 0,
-      pending: [],
-      failed: [],
-    };
     const accountId = await this.resolveHandoffAccountId(
       page.workspaceId,
       knownAccounts,
     );
-    if (accountId === undefined) {
-      // WeChat with zero or several accounts: the browser knows which account is
-      // selected, so it finishes the remaining images through /upload/publish.
-      return {
-        markdown: jsonToMarkdown(page.content),
-        imageSync: { ...imageSync, pending: attachmentIds },
-      };
-    }
 
-    const resolved = await this.uploads.resolvePublishUrlsForPage({
+    // Every image gets a URL the editor can actually load: the image-host URL if
+    // it is already published, otherwise a signed Docmost URL. Relative
+    // `/api/files/...` links would resolve against the editor's own origin and
+    // render as broken images.
+    const resolved = await this.uploads.resolveEditorImageUrls({
       page: {
         id: page.id,
         spaceId: page.spaceId,
@@ -299,26 +290,14 @@ export class DoocsService {
       accountId: accountId ?? undefined,
     });
 
-    const publishUrls = new Map<string, string>();
-    for (const attachmentId of attachmentIds) {
-      const asset = resolved.get(attachmentId);
-      if (asset?.status === 'ready' && asset.url) {
-        publishUrls.set(attachmentId, asset.url);
-        imageSync.ready += 1;
-      } else if (asset?.status === 'failed') {
-        imageSync.failed.push({
-          attachmentId,
-          error: asset.error ?? 'Publish asset is not available',
-        });
-      }
-      // No entry at all means the image points at an attachment that does not
-      // belong to this page. Nothing to publish and nothing the editor can fix,
-      // so it is left alone like any other foreign URL.
-    }
-
     return {
-      markdown: jsonToMarkdown(applyPublishUrls(page.content, publishUrls)),
-      imageSync,
+      markdown: jsonToMarkdown(applyPublishUrls(page.content, resolved.urls)),
+      imageSync: {
+        total: attachmentIds.length,
+        ready: resolved.ready,
+        pending: resolved.pending,
+        failed: resolved.failed,
+      },
     };
   }
 
@@ -334,6 +313,11 @@ export class DoocsService {
   ): Promise<any> {
     const html = await markdownToHtml(markdown);
     const prosemirrorJson = htmlToJson(html as string);
+
+    // Images the editor never published still carry the signed URL handed out at
+    // handoff. Those go back to plain attachment URLs first, so an expiring token
+    // and an absolute origin never reach the stored page.
+    restorePublicAttachmentUrls(prosemirrorJson);
 
     const externalSrcs = collectImageSrcs(prosemirrorJson).filter(
       (src) => !src.startsWith('/'),

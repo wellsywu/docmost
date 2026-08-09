@@ -99,6 +99,11 @@ export const AuditEvent = {
   // Attachment
   ATTACHMENT_UPLOADED: 'attachment.uploaded',
   // ATTACHMENT_DELETED: 'attachment.deleted',
+
+  // doocs / WeChat image host
+  // The one moment a WeChat credential leaves the server for a runtime Docmost
+  // does not control, so it is deliberately not in EXCLUDED_AUDIT_EVENTS.
+  WECHAT_UPLOAD_CREDENTIALS_ISSUED: 'wechat.upload_credentials_issued',
 } as const;
 
 export type AuditEventType = (typeof AuditEvent)[keyof typeof AuditEvent];
@@ -111,7 +116,7 @@ export const EXCLUDED_AUDIT_EVENTS: Set<string> = new Set([
   AuditEvent.COMMENT_UPDATED,
   AuditEvent.COMMENT_RESOLVED,
   AuditEvent.COMMENT_REOPENED,
-  AuditEvent.ATTACHMENT_UPLOADED
+  AuditEvent.ATTACHMENT_UPLOADED,
 ]);
 
 export const AuditResource = {
@@ -129,6 +134,7 @@ export const AuditResource = {
   WORKSPACE_INVITATION: 'workspace_invitation',
   ATTACHMENT: 'attachment',
   LICENSE: 'license',
+  WECHAT_ACCOUNT: 'wechat_account',
 } as const;
 
 export type AuditResourceType =

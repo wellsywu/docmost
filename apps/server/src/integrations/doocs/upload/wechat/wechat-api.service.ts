@@ -7,6 +7,7 @@ import {
 
 const WECHAT_API_BASE_URL = 'https://api.weixin.qq.com';
 const TOKEN_REFRESH_SKEW_MS = 120_000;
+const WECHAT_REQUEST_TIMEOUT_MS = 30_000;
 
 /** `media/uploadimg` accepts JPEG and PNG below 1MB and nothing else. */
 const INLINE_IMAGE_MAX_BYTES = 1024 * 1024;
@@ -21,6 +22,7 @@ export type WechatFetch = typeof fetch;
 
 interface CachedToken {
   appId: string;
+  proxyOrigin: string | null;
   value: string;
   expiresAt: number;
 }
@@ -143,6 +145,7 @@ export class WechatApiService {
     const cached = this.tokens.get(credentials.accountId);
     if (
       cached?.appId === credentials.appId &&
+      cached.proxyOrigin === (credentials.proxyOrigin ?? null) &&
       cached.expiresAt > Date.now() + TOKEN_REFRESH_SKEW_MS
     ) {
       return cached.value;
@@ -201,6 +204,7 @@ export class WechatApiService {
         : 7200;
     this.tokens.set(credentials.accountId, {
       appId: credentials.appId,
+      proxyOrigin: credentials.proxyOrigin ?? null,
       value: result.body.access_token,
       expiresAt: Date.now() + expiresIn * 1000,
     });
@@ -226,7 +230,10 @@ export class WechatApiService {
   ): Promise<{ response: Response; body: T }> {
     let response: Response;
     try {
-      response = await this.fetchImpl(url, init);
+      response = await this.fetchImpl(url, {
+        ...init,
+        signal: init.signal ?? AbortSignal.timeout(WECHAT_REQUEST_TIMEOUT_MS),
+      });
     } catch (error) {
       // A proxy origin puts a third party on this path, so log where the
       // request actually went; "cannot reach WeChat" and "cannot reach the
@@ -234,10 +241,13 @@ export class WechatApiService {
       this.logger.warn(
         `WeChat request to ${url.origin}${url.pathname} failed for account ${credentials.accountId}: ${this.causeChain(error)}`,
       );
-      const code = this.causeCode(error);
+      const code = this.causeCode(error) ?? this.timeoutCode(error);
+      const target = credentials.proxyOrigin
+        ? 'the configured WeChat proxy'
+        : 'the WeChat API';
       throw new WechatApiException(
         code ? `network ${code}` : 'network',
-        'WeChat request failed (network)',
+        `Docmost server could not reach ${target}${code ? ` (${code})` : ''}`,
       );
     }
 
@@ -267,6 +277,15 @@ export class WechatApiService {
       const code = (link as { code?: unknown }).code;
       if (typeof code === 'string' && code) {
         return code;
+      }
+    }
+    return undefined;
+  }
+
+  private timeoutCode(error: unknown): string | undefined {
+    for (const link of this.causes(error)) {
+      if ((link as Error)?.name === 'TimeoutError') {
+        return 'TIMEOUT';
       }
     }
     return undefined;

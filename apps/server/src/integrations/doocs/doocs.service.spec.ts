@@ -47,7 +47,12 @@ describe('DoocsService', () => {
         getPublic: jest.fn().mockResolvedValue({ provider: 'wechat' }),
       },
       uploads: {
-        resolvePublishUrlsForPage: jest.fn().mockResolvedValue(new Map()),
+        resolveEditorImageUrls: jest.fn().mockResolvedValue({
+          urls: new Map(),
+          ready: 0,
+          pending: [],
+          failed: [],
+        }),
         findAttachmentsByPublishUrls: jest.fn().mockResolvedValue(new Map()),
       },
       pageRepo: {
@@ -354,20 +359,12 @@ describe('DoocsService', () => {
       const { service, deps } = buildService({
         pageRepo: { findById: jest.fn().mockResolvedValue(page) },
       });
-      deps.uploads.resolvePublishUrlsForPage.mockResolvedValue(
-        new Map([
-          [
-            attachmentId,
-            {
-              attachmentId,
-              provider: 'wechat',
-              status: 'ready',
-              url: publishUrl,
-              retryable: false,
-            },
-          ],
-        ]),
-      );
+      deps.uploads.resolveEditorImageUrls.mockResolvedValue({
+        urls: new Map([[attachmentId, publishUrl]]),
+        ready: 1,
+        pending: [],
+        failed: [],
+      });
 
       const result = await service.bootstrap('ticket');
 
@@ -382,7 +379,7 @@ describe('DoocsService', () => {
       expect(result.contentHash).toBe(
         hashMarkdown(jsonToMarkdown(page.content)),
       );
-      expect(deps.uploads.resolvePublishUrlsForPage).toHaveBeenCalledWith({
+      expect(deps.uploads.resolveEditorImageUrls).toHaveBeenCalledWith({
         page: {
           id: 'page-1',
           spaceId: 'space-1',
@@ -393,28 +390,22 @@ describe('DoocsService', () => {
       });
     });
 
-    it('keeps the docmost url and reports the failure when publishing fails', async () => {
+    it('hands the editor a loadable url and reports the failure when publishing fails', async () => {
+      const signedUrl = `https://docmost.example.com/api/files/public/${attachmentId}/photo.png?jwt=token`;
       const { service, deps } = buildService({
         pageRepo: { findById: jest.fn().mockResolvedValue(pageWithImage()) },
       });
-      deps.uploads.resolvePublishUrlsForPage.mockResolvedValue(
-        new Map([
-          [
-            attachmentId,
-            {
-              attachmentId,
-              provider: 'wechat',
-              status: 'failed',
-              error: 'WeChat rejected the upload',
-              retryable: true,
-            },
-          ],
-        ]),
-      );
+      deps.uploads.resolveEditorImageUrls.mockResolvedValue({
+        urls: new Map([[attachmentId, signedUrl]]),
+        ready: 0,
+        pending: [],
+        failed: [{ attachmentId, error: 'WeChat rejected the upload' }],
+      });
 
       const result = await service.bootstrap('ticket');
 
-      expect(result.markdown).toContain(attachmentUrl);
+      // A relative /api/files link would resolve against the editor's own origin.
+      expect(result.markdown).toContain(signedUrl);
       expect(result.imageSync).toEqual({
         total: 1,
         ready: 0,
@@ -423,7 +414,7 @@ describe('DoocsService', () => {
       });
     });
 
-    it('leaves images pending when wechat has no single obvious account', async () => {
+    it('asks for image urls without an account when wechat has no single obvious one', async () => {
       const { service, deps } = buildService({
         pageRepo: { findById: jest.fn().mockResolvedValue(pageWithImage()) },
         accounts: {
@@ -432,24 +423,36 @@ describe('DoocsService', () => {
             .mockResolvedValue([{ id: 'account-1' }, { id: 'account-2' }]),
         },
       });
+      deps.uploads.resolveEditorImageUrls.mockResolvedValue({
+        urls: new Map(),
+        ready: 0,
+        pending: [attachmentId],
+        failed: [],
+      });
 
       const result = await service.bootstrap('ticket');
 
-      expect(result.markdown).toContain(attachmentUrl);
       expect(result.imageSync).toEqual({
         total: 1,
         ready: 0,
         pending: [attachmentId],
         failed: [],
       });
-      expect(deps.uploads.resolvePublishUrlsForPage).not.toHaveBeenCalled();
+      expect(deps.uploads.resolveEditorImageUrls).toHaveBeenCalledWith(
+        expect.objectContaining({ accountId: undefined }),
+      );
     });
 
     it('leaves an image from another page alone instead of asking the editor to publish it', async () => {
       const { service, deps } = buildService({
         pageRepo: { findById: jest.fn().mockResolvedValue(pageWithImage()) },
       });
-      deps.uploads.resolvePublishUrlsForPage.mockResolvedValue(new Map());
+      deps.uploads.resolveEditorImageUrls.mockResolvedValue({
+        urls: new Map(),
+        ready: 0,
+        pending: [],
+        failed: [],
+      });
 
       const result = await service.bootstrap('ticket');
 

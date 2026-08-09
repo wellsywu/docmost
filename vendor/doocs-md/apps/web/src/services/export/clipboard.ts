@@ -2,7 +2,7 @@ import { stripUnresolvedAsyncPlaceholders, waitForPreviewReady } from '@/lib/pre
 import { useEditorStore } from '@/stores/editor'
 import { useRenderStore } from '@/stores/render'
 import { useUIStore } from '@/stores/ui'
-import { createEmptyNode, modifyHtmlStructure, solveWeChatImage } from './clipboard-dom'
+import { createEmptyNode, detachSvgs, modifyHtmlStructure, reattachSvgs, solveWeChatImage } from './clipboard-dom'
 import { uploadDocmostClipboardAssets } from './docmost-assets'
 import { getStylesToAdd } from './share-styles'
 import { prepareMathFormulasForWeChat, sanitizeSvgsForWeChat } from './wechat-svg'
@@ -48,6 +48,7 @@ export async function processClipboardContent(primaryColor: string) {
   try {
     const clipboardDiv = outputElement.cloneNode(true) as HTMLElement
     stripUnresolvedAsyncPlaceholders(clipboardDiv)
+    const detachedSvgs = detachSvgs(clipboardDiv)
 
     const stylesToAdd = await getStylesToAdd()
 
@@ -56,11 +57,15 @@ export async function processClipboardContent(primaryColor: string) {
     }
 
     clipboardDiv.innerHTML = modifyHtmlStructure(await mergeCss(clipboardDiv.innerHTML))
+    reattachSvgs(clipboardDiv, detachedSvgs)
 
     clipboardDiv.querySelectorAll(`a[href^="#"]`).forEach(a => a.removeAttribute(`href`))
 
     clipboardDiv.innerHTML = clipboardDiv.innerHTML
-      .replace(/([^-])top:(.*?)em/g, `$1transform: translateY($2em)`)
+      // WeChat drops `position`, so an offset pseudo-element has to move by transform.
+      // Anchored to a declaration boundary and a numeric value: `([^-])top:(.*?)em`
+      // used to run from any bare `top:` up to the next `em` anywhere in the string.
+      .replace(/(^|[;\s"])top:\s*(-?[\d.]+)em/g, `$1transform: translateY($2em)`)
       .replace(/hsl\(var\(--foreground\)\)/g, `#3f3f3f`)
       .replace(/var\(--blockquote-background\)/g, `#f7f7f7`)
       .replace(/var\(--md-primary-color\)/g, primaryColor)

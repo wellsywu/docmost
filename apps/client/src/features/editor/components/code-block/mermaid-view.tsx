@@ -7,6 +7,7 @@ import classes from "./code-block.module.css";
 import { useTranslation } from "react-i18next";
 import { useComputedColorScheme } from "@mantine/core";
 import DOMPurify from "dompurify";
+import { withControllableEdgeLabelBackground } from "./mermaid-svg";
 
 // Lazy: keeps the lightbox bundle off the first-paint path. Exposed as a named
 // factory so we can also prefetch it before the first click (see effect below).
@@ -63,7 +64,7 @@ export default function MermaidView({ props }: MermaidViewProps) {
       mermaid
         .render(id, node.textContent)
         .then((item) => {
-          setPreview(item.svg);
+          setPreview(withControllableEdgeLabelBackground(item.svg));
         })
         .catch((err) => {
           if (props.editor.isEditable) {

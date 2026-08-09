@@ -32,9 +32,12 @@ import {
   DoocsUploadConfigService,
   ResolvedDoocsUploadConfig,
 } from './doocs-upload-config.service';
-import { publishUrlKey } from './doocs-image-url.util';
+import {
+  buildPublicAttachmentUrl,
+  publishUrlKey,
+} from './doocs-image-url.util';
+import { TokenService } from '../../../core/auth/services/token.service';
 import { DoocsS3UploadService } from './s3/doocs-s3-upload.service';
-import { WechatApiService } from './wechat/wechat-api.service';
 
 const WECHAT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
@@ -43,6 +46,18 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/png',
   'image/gif',
 ]);
+/** Hosts `media/uploadimg` and `material/add_material` return URLs on. */
+const WECHAT_IMAGE_HOSTS = ['qpic.cn', 'qlogo.cn'];
+
+/**
+ * Browser-uploaded rows have no server-side view of the bytes, so they cannot
+ * carry a content hash. A Docmost attachment is immutable — replacing an image
+ * creates a new attachment — so a fixed sentinel still yields exactly one row per
+ * attachment and target, and `findReadyPublishAsset`, which ignores the hash,
+ * matches it.
+ */
+const BROWSER_UPLOAD_CONTENT_HASH = 'browser-upload';
+
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const JPEG_SIGNATURE = Buffer.from([255, 216, 255]);
 const GIF87A_SIGNATURE = Buffer.from('GIF87a', 'ascii');
@@ -86,7 +101,12 @@ export interface DoocsAttachmentResponse {
 export interface DoocsPublishAssetResponse {
   attachmentId: string;
   provider: DoocsUploadProvider;
-  status: 'ready' | 'failed';
+  /**
+   * `deferred` is not a failure: under browser-side WeChat publishing the image
+   * host is only contacted when the author copies or publishes, so an upload
+   * legitimately finishes with no publish URL yet.
+   */
+  status: 'ready' | 'failed' | 'deferred';
   url?: string;
   mediaId?: string;
   error?: string;
@@ -113,12 +133,22 @@ export class DoocsUploadService {
     private readonly attachmentService: AttachmentService,
     private readonly storage: StorageService,
     private readonly cipher: DoocsSecretCipherService,
-    private readonly wechat: WechatApiService,
     private readonly uploadConfig: DoocsUploadConfigService,
     private readonly s3: DoocsS3UploadService,
     private readonly environment: EnvironmentService,
+    private readonly tokens: TokenService,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
+
+  /**
+   * WeChat is always reached from the browser, the way standalone doocs does it.
+   * The account's IP whitelist covers the network the author is on, not this
+   * server's egress, so uploading from here fails on exactly the deployments
+   * that need it most. S3 has no such constraint and still uploads inline.
+   */
+  private publishesFromBrowser(provider: DoocsUploadProvider): boolean {
+    return provider === 'wechat';
+  }
 
   async upload(
     request: FastifyRequest,
@@ -130,14 +160,22 @@ export class DoocsUploadService {
     const upload = await this.parseMultipart(request);
     const { page, config } = await this.resolvePageContext(session);
     const fileName = this.normalizeFilename(upload.filename, upload.mime);
-    const target = await this.resolvePublishTarget({
-      page,
-      config,
-      accountId: upload.accountId,
-      bytes: upload.bytes,
-      mime: upload.mime,
-      filename: fileName,
-    });
+    // With browser-side publishing configured, WeChat is reached from the browser
+    // rather than from here, because the account's IP whitelist covers the colo
+    // the browser reaches and not this server's egress. Inserting an image then
+    // only has to produce the attachment; the image host is contacted later, when
+    // the author copies or publishes. S3 never has this constraint, and a
+    // deployment whose own IP is whitelisted keeps the inline upload.
+    const target = this.publishesFromBrowser(config.provider)
+      ? undefined
+      : await this.resolvePublishTarget({
+          page,
+          config,
+          accountId: upload.accountId,
+          bytes: upload.bytes,
+          mime: upload.mime,
+          filename: fileName,
+        });
 
     const attachment = await this.attachmentService.uploadPageFileFromBuffer({
       bytes: upload.bytes,
@@ -164,20 +202,48 @@ export class DoocsUploadService {
       },
     });
 
-    const publishAsset = await this.ensurePublishAsset({
-      page,
-      config,
-      attachment,
-      accountId: upload.accountId,
-      bytes: upload.bytes,
-      mime: upload.mime,
-      filename: attachment.fileName,
-      target,
-    });
+    const publishAsset = target
+      ? await this.ensurePublishAsset({
+          page,
+          config,
+          attachment,
+          accountId: upload.accountId,
+          bytes: upload.bytes,
+          mime: upload.mime,
+          filename: attachment.fileName,
+          target,
+        })
+      : this.deferredPublishAsset(attachment.id);
 
     return {
-      attachment: this.toAttachmentResponse(attachment),
+      attachment: await this.toAttachmentResponse(attachment, page),
       publishAsset,
+    };
+  }
+
+  private deferredPublishAsset(
+    attachmentId: string,
+  ): DoocsPublishAssetResponse {
+    return {
+      attachmentId,
+      provider: 'wechat',
+      status: 'deferred',
+      retryable: false,
+    };
+  }
+
+  private readyPublishAsset(
+    attachmentId: string,
+    provider: DoocsUploadProvider,
+    row: { publish_url: string | null; media_id: string | null },
+  ): DoocsPublishAssetResponse {
+    return {
+      attachmentId,
+      provider,
+      status: 'ready',
+      url: row.publish_url ?? undefined,
+      ...(row.media_id ? { mediaId: row.media_id } : {}),
+      retryable: false,
     };
   }
 
@@ -197,6 +263,14 @@ export class DoocsUploadService {
       throw new ForbiddenException('Attachment is not available for this page');
     }
 
+    // A browser-side provider answers ready-or-deferred rather than uploading.
+    // The current editor asks for credentials instead of calling this at all, so
+    // this is what a tab still running an older build gets: a status it can act
+    // on, not a failure it cannot.
+    if (this.publishesFromBrowser(config.provider)) {
+      return this.resolvePublishUrl({ page, config, accountId, attachment });
+    }
+
     const content = await this.storage.read(attachment.filePath);
     return this.ensurePublishAsset({
       page,
@@ -207,6 +281,185 @@ export class DoocsUploadService {
       mime: attachment.mimeType || 'application/octet-stream',
       filename: attachment.fileName,
     });
+  }
+
+  /**
+   * Hands the browser the account's WeChat credentials so it can upload the way
+   * standalone doocs does. The AppSecret reaches the page, which is the accepted
+   * trade for uploads that work: the whitelist covers the author's network, not
+   * this server's egress. At rest the secret stays encrypted; this is the only
+   * place it is decrypted for a caller, and it is logged as such.
+   */
+  async getWechatUploadCredentials(
+    accountId: string | undefined,
+    session: DoocsSessionPrincipal,
+  ): Promise<{
+    accountId: string;
+    appId: string;
+    appSecret: string;
+    proxyOrigin: string | null;
+  }> {
+    const { page, config } = await this.resolvePageContext(session);
+    if (config.provider !== 'wechat') {
+      throw new BadRequestException(
+        'The upload provider for this workspace is not WeChat',
+      );
+    }
+
+    const account = await this.loadWechatAccount(page.workspaceId, accountId);
+
+    this.auditService.log({
+      event: AuditEvent.WECHAT_UPLOAD_CREDENTIALS_ISSUED,
+      resourceType: AuditResource.WECHAT_ACCOUNT,
+      resourceId: account.id,
+      spaceId: page.spaceId,
+      metadata: { pageId: page.id, proxyOrigin: account.proxy_origin },
+    });
+
+    return {
+      accountId: account.id,
+      appId: account.app_id,
+      appSecret: this.cipher.decrypt(account.app_secret_enc),
+      proxyOrigin: account.proxy_origin,
+    };
+  }
+
+  /**
+   * Records what the browser uploaded, so the next copy or publish reuses the
+   * image instead of sending it again.
+   */
+  async registerPublishAssets(
+    entries: { attachmentId: string; url: string; mediaId?: string }[],
+    accountId: string | undefined,
+    session: DoocsSessionPrincipal,
+  ): Promise<DoocsPublishAssetResponse[]> {
+    const { page } = await this.resolvePageContext(session);
+    const account = await this.loadWechatAccount(page.workspaceId, accountId);
+    const target = this.wechatTargetIdentity(account);
+    const owned = await this.ownedAttachmentIds(
+      page,
+      entries.map((entry) => entry.attachmentId),
+    );
+
+    const results: DoocsPublishAssetResponse[] = [];
+    for (const entry of entries) {
+      if (!owned.has(entry.attachmentId)) {
+        throw new ForbiddenException(
+          'Attachment is not available for this page',
+        );
+      }
+      const url = this.assertWechatImageUrl(entry.url);
+      await this.savePublishAsset({
+        page,
+        attachmentId: entry.attachmentId,
+        target,
+        contentHash: BROWSER_UPLOAD_CONTENT_HASH,
+        status: 'ready',
+        url,
+        mediaId: entry.mediaId,
+      });
+      results.push({
+        attachmentId: entry.attachmentId,
+        provider: 'wechat',
+        status: 'ready',
+        url,
+        ...(entry.mediaId ? { mediaId: entry.mediaId } : {}),
+        retryable: false,
+      });
+    }
+    return results;
+  }
+
+  /**
+   * Tells the browser which of these attachments already have an image-host URL,
+   * so only the rest have to be uploaded.
+   */
+  async lookupPublishAssets(
+    attachmentIds: string[],
+    accountId: string | undefined,
+    session: DoocsSessionPrincipal,
+  ): Promise<DoocsPublishAssetResponse[]> {
+    const { page } = await this.resolvePageContext(session);
+    if (attachmentIds.length === 0) {
+      return [];
+    }
+    const account = await this.loadWechatAccount(page.workspaceId, accountId);
+    const target = this.wechatTargetIdentity(account);
+    const owned = await this.ownedAttachmentIds(page, attachmentIds);
+
+    const results: DoocsPublishAssetResponse[] = [];
+    for (const attachmentId of attachmentIds) {
+      if (!owned.has(attachmentId)) {
+        continue;
+      }
+      const existing = await this.findReadyPublishAsset(
+        page.workspaceId,
+        attachmentId,
+        target,
+      );
+      results.push(
+        existing?.publish_url
+          ? {
+              attachmentId,
+              provider: 'wechat',
+              status: 'ready',
+              url: existing.publish_url,
+              ...(existing.media_id ? { mediaId: existing.media_id } : {}),
+              retryable: false,
+            }
+          : this.deferredPublishAsset(attachmentId),
+      );
+    }
+    return results;
+  }
+
+  private async ownedAttachmentIds(
+    page: PageContext,
+    attachmentIds: string[],
+  ): Promise<Set<string>> {
+    const unique = [...new Set(attachmentIds)];
+    if (unique.length === 0) {
+      return new Set();
+    }
+    const attachments = await this.attachmentRepo.findByIds(unique);
+    return new Set(
+      attachments
+        .filter(
+          (attachment) =>
+            !attachment.deletedAt &&
+            attachment.workspaceId === page.workspaceId &&
+            attachment.pageId === page.id,
+        )
+        .map((attachment) => attachment.id),
+    );
+  }
+
+  /**
+   * The browser is the one reporting this URL, and `findAttachmentsByPublishUrls`
+   * later trusts the table to map a URL back to an attachment. Accepting an
+   * arbitrary URL here would let a caller claim any third-party image as this
+   * page's attachment on the next save, so only the WeChat image host is allowed.
+   */
+  private assertWechatImageUrl(value: string): string {
+    let parsed: URL;
+    try {
+      parsed = new URL(value);
+    } catch {
+      throw new BadRequestException('Publish URL is not a valid URL');
+    }
+    if (parsed.protocol !== 'https:') {
+      throw new BadRequestException('Publish URL must use HTTPS');
+    }
+    const host = parsed.hostname.toLowerCase();
+    const allowed = WECHAT_IMAGE_HOSTS.some(
+      (suffix) => host === suffix || host.endsWith(`.${suffix}`),
+    );
+    if (!allowed) {
+      throw new BadRequestException(
+        'Publish URL must point at the WeChat image host',
+      );
+    }
+    return parsed.toString();
   }
 
   /**
@@ -308,6 +561,79 @@ export class DoocsUploadService {
     return result;
   }
 
+  /**
+   * Builds the image URL the doocs editor should show for every attachment on a
+   * page: the image-host URL when one already exists, and otherwise a signed
+   * Docmost URL so the picture still renders while it waits to be published.
+   */
+  async resolveEditorImageUrls(opts: {
+    page: PageContext;
+    attachmentIds: string[];
+    accountId?: string;
+  }): Promise<{
+    urls: Map<string, string>;
+    ready: number;
+    pending: string[];
+    failed: { attachmentId: string; error: string }[];
+  }> {
+    const urls = new Map<string, string>();
+    const pending: string[] = [];
+    const failed: { attachmentId: string; error: string }[] = [];
+    let ready = 0;
+
+    const config = await this.uploadConfig.resolve(opts.page.workspaceId);
+    // WeChat without a chosen account has nothing to look up: only the browser
+    // knows which account is selected. Every image is simply left pending.
+    const resolved =
+      config.provider !== 'wechat' || opts.accountId
+        ? await this.resolvePublishUrlsForPage(opts)
+        : new Map<string, DoocsPublishAssetResponse>();
+
+    const attachments = await this.attachmentRepo.findByIds(opts.attachmentIds);
+    const appUrl = this.environment.getDoocsAttachmentBaseUrl();
+
+    for (const attachment of attachments) {
+      if (
+        attachment.deletedAt ||
+        attachment.workspaceId !== opts.page.workspaceId ||
+        attachment.pageId !== opts.page.id
+      ) {
+        // Not this page's attachment; treated like any other foreign image.
+        continue;
+      }
+      const asset = resolved.get(attachment.id);
+      if (asset?.status === 'ready' && asset.url) {
+        urls.set(attachment.id, asset.url);
+        ready += 1;
+        continue;
+      }
+
+      urls.set(
+        attachment.id,
+        buildPublicAttachmentUrl({
+          appUrl,
+          attachmentId: attachment.id,
+          fileName: attachment.fileName,
+          token: await this.tokens.generateAttachmentToken({
+            attachmentId: attachment.id,
+            pageId: opts.page.id,
+            workspaceId: opts.page.workspaceId,
+          }),
+        }),
+      );
+      if (asset?.status === 'failed') {
+        failed.push({
+          attachmentId: attachment.id,
+          error: asset.error ?? 'Publish asset is not available',
+        });
+      } else {
+        pending.push(attachment.id);
+      }
+    }
+
+    return { urls, ready, pending, failed };
+  }
+
   private async resolvePublishUrl(opts: {
     page: PageContext;
     config: ResolvedDoocsUploadConfig;
@@ -316,6 +642,27 @@ export class DoocsUploadService {
   }): Promise<DoocsPublishAssetResponse> {
     const provider = opts.config.provider;
     try {
+      // Settled before any target is resolved: resolvePublishTarget cannot build
+      // one for a browser-side provider, and letting it throw here would report
+      // every not-yet-published image as failed instead of pending.
+      if (this.publishesFromBrowser(provider)) {
+        const account = await this.loadWechatAccount(
+          opts.page.workspaceId,
+          opts.accountId,
+        );
+        const published = await this.findReadyPublishAsset(
+          opts.page.workspaceId,
+          opts.attachment.id,
+          this.wechatTargetIdentity(account),
+        );
+        // Nothing more this server can do for the rest: the image host is only
+        // reachable from the browser, which uploads when the author copies or
+        // publishes.
+        return published?.publish_url
+          ? this.readyPublishAsset(opts.attachment.id, provider, published)
+          : this.deferredPublishAsset(opts.attachment.id);
+      }
+
       const target = await this.resolvePublishTarget({
         page: opts.page,
         config: opts.config,
@@ -333,14 +680,7 @@ export class DoocsUploadService {
         target,
       );
       if (existing?.publish_url) {
-        return {
-          attachmentId: opts.attachment.id,
-          provider,
-          status: 'ready',
-          url: existing.publish_url,
-          ...(existing.media_id ? { mediaId: existing.media_id } : {}),
-          retryable: false,
-        };
+        return this.readyPublishAsset(opts.attachment.id, provider, existing);
       }
 
       const content = await this.storage.read(opts.attachment.filePath);
@@ -569,22 +909,47 @@ export class DoocsUploadService {
       };
     }
 
-    if (!opts.accountId) {
+    // No WeChat target exists any more: this server cannot reach the image host,
+    // so every caller that could take one is expected to consult
+    // publishesFromBrowser() first. publishFile() is the exception — it uploads
+    // bytes with no attachment behind them, and the browser now does that
+    // directly, so an older editor build reaching here gets told why.
+    throw new BadRequestException(
+      'WeChat images are uploaded from the browser, not from the server',
+    );
+  }
+
+  private async loadWechatAccount(
+    workspaceId: string,
+    accountId: string | undefined,
+  ): Promise<WechatAccountCredentialsRow> {
+    if (!accountId) {
       throw new BadRequestException('accountId is required');
     }
     const account = (await this.db
       .selectFrom('wechat_accounts')
       .select(['id', 'app_id', 'app_secret_enc', 'proxy_origin'])
-      .where('id', '=', opts.accountId)
-      .where('workspace_id', '=', opts.page.workspaceId)
+      .where('id', '=', accountId)
+      .where('workspace_id', '=', workspaceId)
       .executeTakeFirst()) as WechatAccountCredentialsRow | undefined;
     if (!account) {
       throw new ForbiddenException(
         'WeChat account is not available for this page',
       );
     }
+    return account;
+  }
 
-    const appSecret = this.cipher.decrypt(account.app_secret_enc);
+  /**
+   * Identity of a publish target, without the upload closure. Ticket issuance and
+   * browser-side registration both need the fingerprint so their rows land on the
+   * same key the server-side path would have used — change the account's
+   * credentials or proxy and previously published images stop matching, which is
+   * the intended behaviour.
+   */
+  private wechatTargetIdentity(
+    account: WechatAccountCredentialsRow,
+  ): Pick<PublishTarget, 'provider' | 'targetId' | 'configFingerprint'> {
     return {
       provider: 'wechat',
       targetId: account.id,
@@ -593,19 +958,8 @@ export class DoocsUploadService {
         accountId: account.id,
         appId: account.app_id,
         secret: account.app_secret_enc,
+        proxyOrigin: account.proxy_origin,
       }),
-      upload: () =>
-        this.wechat.uploadImage(
-          {
-            accountId: account.id,
-            appId: account.app_id,
-            appSecret,
-            proxyOrigin: account.proxy_origin,
-          },
-          opts.bytes,
-          opts.mime,
-          opts.filename,
-        ),
     };
   }
 
@@ -705,13 +1059,28 @@ export class DoocsUploadService {
       .execute();
   }
 
-  private toAttachmentResponse(
+  /**
+   * The URL is absolute and signed because the doocs editor runs on its own
+   * origin: a relative `/api/files/...` would resolve against the editor's host,
+   * and `/api/files/:id` would reject its bearer token anyway.
+   */
+  private async toAttachmentResponse(
     attachment: Attachment,
-  ): DoocsAttachmentResponse {
+    page: PageContext,
+  ): Promise<DoocsAttachmentResponse> {
     return {
       id: attachment.id,
       fileName: attachment.fileName,
-      url: `/api/files/${attachment.id}/${encodeURIComponent(attachment.fileName)}`,
+      url: buildPublicAttachmentUrl({
+        appUrl: this.environment.getDoocsAttachmentBaseUrl(),
+        attachmentId: attachment.id,
+        fileName: attachment.fileName,
+        token: await this.tokens.generateAttachmentToken({
+          attachmentId: attachment.id,
+          pageId: page.id,
+          workspaceId: page.workspaceId,
+        }),
+      }),
       mimeType: attachment.mimeType,
       fileSize: Number(attachment.fileSize ?? 0),
     };

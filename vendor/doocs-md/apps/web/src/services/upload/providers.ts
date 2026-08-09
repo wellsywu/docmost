@@ -517,10 +517,10 @@ async function docmostFileUpload(file: File): Promise<string> {
     const reason = response.publishAsset.error ? `: ${response.publishAsset.error}` : ``
     toast.warning(`Docmost image was inserted, but publishing is ${response.publishAsset.retryable ? `retryable` : `not available`}${reason}`)
   }
-  // The editor content is what gets published elsewhere, so it carries the image
-  // host URL; the server maps it back to the attachment when saving to Docmost.
-  // Only a failed publish falls back to the Docmost URL, which at least keeps
-  // the image visible in the editor.
+  // `deferred` is the normal WeChat path: the image host is only reached when the
+  // author copies or publishes, so the editor holds the Docmost URL until then —
+  // it renders here, and an mmbiz URL would not. A ready publish URL (S3) is used
+  // straight away, and a failed one falls back the same way.
   const url = response.publishAsset.status === `ready` && response.publishAsset.url
     ? response.publishAsset.url
     : response.attachment.url

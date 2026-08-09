@@ -22,7 +22,7 @@
   "For security, the AppSecret is encrypted after saving and will not be displayed again.": "For security, the AppSecret is encrypted after saving and will not be displayed again.",
   "Proxy domain": "Proxy domain",
   "e.g. https://wechat.example.workers.dev": "e.g. https://wechat.example.workers.dev",
-  "Optional. WeChat only accepts access token requests from IPs on the official account whitelist. Set a proxy you control when the server's own IP cannot be whitelisted; the AppSecret is sent to this host.": "Optional. WeChat only accepts access token requests from IPs on the official account whitelist. Set a proxy you control when the server's own IP cannot be whitelisted; the AppSecret is sent to this host.",
+  "Optional. WeChat only accepts access token requests from IPs on the official account whitelist. Set a proxy you control when the server's own IP cannot be whitelisted. The Docmost server, not your browser, must reach this HTTPS origin, and the AppSecret is sent to it.": "Optional. WeChat only accepts access token requests from IPs on the official account whitelist. Set a proxy you control when the server's own IP cannot be whitelisted. The Docmost server, not your browser, must reach this HTTPS origin, and the AppSecret is sent to it.",
   "Direct": "Direct",
   "Test connection for {{name}}": "Test connection for {{name}}",
   "Connection test succeeded. Image upload is working.": "Connection test succeeded. Image upload is working.",

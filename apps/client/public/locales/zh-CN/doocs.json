@@ -22,7 +22,7 @@
   "For security, the AppSecret is encrypted after saving and will not be displayed again.": "为确保安全，AppSecret 保存后会被加密，且不会再次显示。",
   "Proxy domain": "代理域名",
   "e.g. https://wechat.example.workers.dev": "例如：https://wechat.example.workers.dev",
-  "Optional. WeChat only accepts access token requests from IPs on the official account whitelist. Set a proxy you control when the server's own IP cannot be whitelisted; the AppSecret is sent to this host.": "选填。微信仅接受公众号 IP 白名单内的地址获取 access_token。当服务器自身 IP 无法加入白名单时，可填写一个你自己控制的代理；AppSecret 会被发送到该域名。",
+  "Optional. WeChat only accepts access token requests from IPs on the official account whitelist. Set a proxy you control when the server's own IP cannot be whitelisted. The Docmost server, not your browser, must reach this HTTPS origin, and the AppSecret is sent to it.": "选填。微信仅接受公众号 IP 白名单内的地址获取 access_token。当服务器自身 IP 无法加入白名单时，可填写一个你自己控制的代理。请求由 Docmost 服务器而不是浏览器发出，因此服务器必须能访问该 HTTPS 地址；AppSecret 会被发送到该地址。",
   "Direct": "直连",
   "Test connection for {{name}}": "测试{{name}}的连接",
   "Connection test succeeded. Image upload is working.": "连接测试通过，图片上传可用。",

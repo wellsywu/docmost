@@ -70,6 +70,7 @@ function selectQuery(result: unknown) {
       wheres.push(args);
       return query;
     }),
+    orderBy: jest.fn(() => query),
     executeTakeFirst: jest.fn().mockResolvedValue(result),
   };
   return { query, wheres };
@@ -88,6 +89,7 @@ function createService(options: {
   account?: unknown;
   uploadLimit?: string;
   publishAsset?: unknown;
+  provider?: 'wechat' | 's3';
 }) {
   const accountSelect = selectQuery(options.account);
   const assetSelect = selectQuery(options.publishAsset);
@@ -107,6 +109,7 @@ function createService(options: {
   };
   const attachmentRepo = {
     findById: jest.fn(),
+    findByIds: jest.fn().mockResolvedValue([]),
   };
   const attachment = {
     id: '11111111-1111-7111-8111-111111111111',
@@ -134,13 +137,13 @@ function createService(options: {
   const cipher = {
     decrypt: jest.fn().mockReturnValue('app-secret-sensitive-value'),
   };
-  const wechat = {
-    uploadImage: jest.fn().mockResolvedValue({
-      url: 'https://mmbiz.qpic.cn/safe-image',
-    }),
-  };
   const uploadConfig = {
-    resolveForSession: jest.fn().mockResolvedValue({ provider: 'wechat' }),
+    resolveForSession: jest
+      .fn()
+      .mockResolvedValue({ provider: options.provider ?? 'wechat' }),
+    resolve: jest
+      .fn()
+      .mockResolvedValue({ provider: options.provider ?? 'wechat' }),
   };
   const s3 = {
     upload: jest.fn().mockResolvedValue({
@@ -151,6 +154,12 @@ function createService(options: {
     getFileUploadSizeLimit: jest
       .fn()
       .mockReturnValue(options.uploadLimit ?? '50mb'),
+    getDoocsAttachmentBaseUrl: jest
+      .fn()
+      .mockReturnValue('https://docmost.example.com'),
+  };
+  const tokens = {
+    generateAttachmentToken: jest.fn().mockResolvedValue('attachment-jwt'),
   };
   const auditService = { log: jest.fn() };
   const service = new DoocsUploadService(
@@ -160,10 +169,10 @@ function createService(options: {
     attachmentService as never,
     storage as never,
     cipher as never,
-    wechat as never,
     uploadConfig as never,
     s3 as never,
     environment as never,
+    tokens as never,
     auditService as never,
   );
   return {
@@ -176,7 +185,7 @@ function createService(options: {
     attachmentService,
     storage,
     cipher,
-    wechat,
+    tokens,
     uploadConfig,
     s3,
     auditService,
@@ -185,38 +194,24 @@ function createService(options: {
 }
 
 describe('DoocsUploadService', () => {
-  it('binds the account lookup to the session page workspace', async () => {
-    const { service, wheres, cipher, wechat, attachmentService } =
-      createService({
-        account: {
-          id: 'account-1',
-          app_id: 'wx-app-id-sensitive-value',
-          app_secret_enc: envelope,
-          proxy_origin: null,
-        },
-      });
+  it('stores the Docmost attachment and defers the WeChat upload to the browser', async () => {
+    const { service, cipher, attachmentService } = createService({
+      account: {
+        id: 'account-1',
+        app_id: 'wx-app-id-sensitive-value',
+        app_secret_enc: envelope,
+        proxy_origin: null,
+      },
+    });
 
     const result = await service.upload(
       request(field('accountId', 'account-1'), file('image/png', png)),
       session,
     );
 
-    expect(wheres).toEqual([
-      ['id', '=', 'account-1'],
-      ['workspace_id', '=', 'workspace-a'],
-    ]);
-    expect(cipher.decrypt).toHaveBeenCalledWith(envelope);
-    expect(wechat.uploadImage).toHaveBeenCalledWith(
-      {
-        accountId: 'account-1',
-        appId: 'wx-app-id-sensitive-value',
-        appSecret: 'app-secret-sensitive-value',
-        proxyOrigin: null,
-      },
-      png,
-      'image/png',
-      'image.png',
-    );
+    // Nothing is decrypted here: the credential only leaves the server through
+    // getWechatUploadCredentials, which is audited.
+    expect(cipher.decrypt).not.toHaveBeenCalled();
     expect(attachmentService.uploadPageFileFromBuffer).toHaveBeenCalledWith({
       bytes: png,
       fileName: 'image.png',
@@ -230,15 +225,17 @@ describe('DoocsUploadService', () => {
       attachment: {
         id: '11111111-1111-7111-8111-111111111111',
         fileName: 'image.png',
-        url: '/api/files/11111111-1111-7111-8111-111111111111/image.png',
+        // Absolute and signed: the editor runs on its own origin, where a
+        // relative link resolves to the wrong host and the bearer token that
+        // works for the doocs API is not accepted by /api/files/:id.
+        url: 'https://docmost.example.com/api/files/public/11111111-1111-7111-8111-111111111111/image.png?jwt=attachment-jwt',
         mimeType: 'image/png',
         fileSize: png.length,
       },
       publishAsset: {
         attachmentId: '11111111-1111-7111-8111-111111111111',
         provider: 'wechat',
-        status: 'ready',
-        url: 'https://mmbiz.qpic.cn/safe-image',
+        status: 'deferred',
         retryable: false,
       },
     });
@@ -246,51 +243,23 @@ describe('DoocsUploadService', () => {
     expect(JSON.stringify(result)).not.toContain('app-secret-sensitive-value');
   });
 
-  it('routes the upload through the account proxy origin when one is set', async () => {
-    const { service, wechat } = createService({
-      account: {
-        id: 'account-1',
-        app_id: 'wx-app-id',
-        app_secret_enc: envelope,
-        proxy_origin: 'https://wechat.example.workers.dev',
-      },
+  it('binds the credential lookup to the session page workspace', async () => {
+    const { service, wheres, cipher } = createService({
+      account: undefined,
     });
 
-    await service.upload(
-      request(field('accountId', 'account-1'), file('image/png', png)),
-      session,
-    );
-
-    expect(wechat.uploadImage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        proxyOrigin: 'https://wechat.example.workers.dev',
-      }),
-      png,
-      'image/png',
-      'image.png',
-    );
-  });
-
-  it('rejects an account from another workspace before decrypting it', async () => {
-    const { service, wheres, cipher, wechat, attachmentService } =
-      createService({
-        account: undefined,
-      });
-
     await expect(
-      service.upload(
-        request(field('accountId', 'foreign-account'), file('image/png', png)),
-        session,
-      ),
+      service.getWechatUploadCredentials('foreign-account', session),
     ).rejects.toBeInstanceOf(ForbiddenException);
-    expect(wheres).toContainEqual(['workspace_id', '=', 'workspace-a']);
+    expect(wheres).toEqual([
+      ['id', '=', 'foreign-account'],
+      ['workspace_id', '=', 'workspace-a'],
+    ]);
     expect(cipher.decrypt).not.toHaveBeenCalled();
-    expect(wechat.uploadImage).not.toHaveBeenCalled();
-    expect(attachmentService.uploadPageFileFromBuffer).not.toHaveBeenCalled();
   });
 
   it('writes neither target when the current session cannot edit the page', async () => {
-    const { service, uploadConfig, attachmentService, wechat } = createService({
+    const { service, uploadConfig, attachmentService } = createService({
       account: {
         id: 'account-1',
         app_id: 'wx-app-id',
@@ -307,11 +276,10 @@ describe('DoocsUploadService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(attachmentService.uploadPageFileFromBuffer).not.toHaveBeenCalled();
-    expect(wechat.uploadImage).not.toHaveBeenCalled();
   });
 
   it('does not write the publish target when the Docmost attachment fails', async () => {
-    const { service, attachmentService, wechat, insert } = createService({
+    const { service, attachmentService, insert } = createService({
       account: {
         id: 'account-1',
         app_id: 'wx-app-id',
@@ -329,7 +297,6 @@ describe('DoocsUploadService', () => {
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    expect(wechat.uploadImage).not.toHaveBeenCalled();
     expect(insert.values).not.toHaveBeenCalled();
   });
 
@@ -380,11 +347,9 @@ describe('DoocsUploadService', () => {
   });
 
   it('routes to workspace S3 config without requiring a WeChat account', async () => {
-    const { service, wheres, cipher, wechat, uploadConfig, s3 } = createService(
-      {
-        account: undefined,
-      },
-    );
+    const { service, wheres, cipher, uploadConfig, s3 } = createService({
+      account: undefined,
+    });
     const s3Config = {
       endpoint: 'https://s3.example.com',
       region: 'auto',
@@ -427,30 +392,26 @@ describe('DoocsUploadService', () => {
     );
     expect(wheres).toEqual([]);
     expect(cipher.decrypt).not.toHaveBeenCalled();
-    expect(wechat.uploadImage).not.toHaveBeenCalled();
   });
 
   it('keeps the Docmost attachment and records retryable state when publish fails', async () => {
-    const { service, wechat, attachmentService, insert } = createService({
-      account: {
-        id: 'account-1',
-        app_id: 'wx-app-id',
-        app_secret_enc: envelope,
-      },
+    const { service, uploadConfig, s3, attachmentService, insert } =
+      createService({ account: undefined });
+    uploadConfig.resolveForSession.mockResolvedValue({
+      provider: 's3',
+      s3: { bucket: 'bucket', region: 'auto' },
     });
-    wechat.uploadImage.mockRejectedValue(
-      new Error('sensitive upstream detail'),
-    );
+    s3.upload.mockRejectedValue(new Error('sensitive upstream detail'));
 
     const result = await service.upload(
-      request(field('accountId', 'account-1'), file('image/png', png)),
+      request(file('image/png', png)),
       session,
     );
 
     expect(attachmentService.uploadPageFileFromBuffer).toHaveBeenCalledTimes(1);
     expect(result.publishAsset).toEqual({
       attachmentId: '11111111-1111-7111-8111-111111111111',
-      provider: 'wechat',
+      provider: 's3',
       status: 'failed',
       error: 'Publish asset upload failed. Retry before publishing.',
       retryable: true,
@@ -462,22 +423,19 @@ describe('DoocsUploadService', () => {
   });
 
   it('reports the provider error code without the message it came with', async () => {
-    const { service, wechat } = createService({
-      account: {
-        id: 'account-1',
-        app_id: 'wx-app-id',
-        app_secret_enc: envelope,
-      },
+    const { service, uploadConfig, s3 } = createService({ account: undefined });
+    uploadConfig.resolveForSession.mockResolvedValue({
+      provider: 's3',
+      s3: { bucket: 'bucket', region: 'auto' },
     });
-    wechat.uploadImage.mockRejectedValue(
-      new WechatApiException(
-        40164,
-        'WeChat request failed (40164): invalid ip 203.0.113.7',
-      ),
+    s3.upload.mockRejectedValue(
+      Object.assign(new Error('AccessDenied for arn:aws:iam::123:user/ci'), {
+        errcode: 'AccessDenied',
+      }),
     );
 
     const result = await service.upload(
-      request(field('accountId', 'account-1'), file('image/png', png)),
+      request(file('image/png', png)),
       session,
     );
 
@@ -485,15 +443,15 @@ describe('DoocsUploadService', () => {
       expect.objectContaining({
         status: 'failed',
         error:
-          'Publish asset upload failed (wechat 40164). Retry before publishing.',
+          'Publish asset upload failed (s3 AccessDenied). Retry before publishing.',
         retryable: true,
       }),
     );
-    expect(JSON.stringify(result)).not.toContain('203.0.113.7');
+    expect(JSON.stringify(result)).not.toContain('arn:aws:iam');
   });
 
   it('rejects retrying an attachment outside the session page and workspace', async () => {
-    const { service, attachmentRepo, storage, wechat } = createService({
+    const { service, attachmentRepo, storage } = createService({
       account: {
         id: 'account-1',
         app_id: 'wx-app-id',
@@ -516,6 +474,284 @@ describe('DoocsUploadService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(storage.read).not.toHaveBeenCalled();
-    expect(wechat.uploadImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('DoocsUploadService browser-side WeChat publishing', () => {
+  const account = {
+    id: 'account-1',
+    app_id: 'wx-app-id',
+    app_secret_enc: envelope,
+    proxy_origin: 'https://wechat.example.workers.dev',
+  };
+  const attachmentId = '11111111-1111-7111-8111-111111111111';
+
+  function ownedAttachment(overrides: Record<string, unknown> = {}) {
+    return {
+      id: attachmentId,
+      fileName: 'image.png',
+      pageId: 'page-1',
+      workspaceId: 'workspace-a',
+      deletedAt: null,
+      ...overrides,
+    };
+  }
+
+  it('leaves the WeChat call to the browser instead of uploading during /upload', async () => {
+    const { service, storage } = createService({ account });
+
+    const result = await service.upload(
+      request(field('accountId', 'account-1'), file('image/png', png)),
+      session,
+    );
+
+    // Not even read off disk: nothing here can reach the image host.
+    expect(storage.read).not.toHaveBeenCalled();
+    expect(result.publishAsset).toEqual({
+      attachmentId,
+      provider: 'wechat',
+      status: 'deferred',
+      retryable: false,
+    });
+  });
+
+  it('hands the browser the account credentials it needs to upload', async () => {
+    const { service, auditService } = createService({ account });
+
+    const result = await service.getWechatUploadCredentials(
+      'account-1',
+      session,
+    );
+
+    expect(result).toEqual({
+      accountId: 'account-1',
+      appId: 'wx-app-id',
+      appSecret: 'app-secret-sensitive-value',
+      proxyOrigin: 'https://wechat.example.workers.dev',
+    });
+    // The one moment a WeChat credential leaves the server, so it is logged.
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'wechat.upload_credentials_issued',
+        resourceId: 'account-1',
+      }),
+    );
+  });
+
+  it('refuses to hand out credentials when the workspace does not publish to WeChat', async () => {
+    const { service } = createService({ account, provider: 's3' });
+
+    await expect(
+      service.getWechatUploadCredentials('account-1', session),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('records what the browser uploaded so the next copy reuses it', async () => {
+    const { service, attachmentRepo, insert } = createService({
+      account,
+    });
+    attachmentRepo.findByIds.mockResolvedValue([ownedAttachment()]);
+
+    const result = await service.registerPublishAssets(
+      [
+        {
+          attachmentId,
+          url: 'https://mmbiz.qpic.cn/photo',
+          mediaId: 'media-1',
+        },
+      ],
+      'account-1',
+      session,
+    );
+
+    expect(result).toEqual([
+      {
+        attachmentId,
+        provider: 'wechat',
+        status: 'ready',
+        url: 'https://mmbiz.qpic.cn/photo',
+        mediaId: 'media-1',
+        retryable: false,
+      },
+    ]);
+    expect(insert.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachment_id: attachmentId,
+        publish_url: 'https://mmbiz.qpic.cn/photo',
+        status: 'ready',
+      }),
+    );
+  });
+
+  it.each([
+    ['a third-party host', 'https://evil.example.com/photo.png'],
+    [
+      'a host that merely ends in the right words',
+      'https://qpic.cn.evil.com/x',
+    ],
+    ['plain http', 'http://mmbiz.qpic.cn/photo'],
+    ['a non-url', 'not-a-url'],
+  ])(
+    'rejects %s, which would otherwise be claimed as this page attachment on save',
+    async (_label, url) => {
+      const { service, attachmentRepo, insert } = createService({
+        account,
+      });
+      attachmentRepo.findByIds.mockResolvedValue([ownedAttachment()]);
+
+      await expect(
+        service.registerPublishAssets(
+          [{ attachmentId, url }],
+          'account-1',
+          session,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(insert.values).not.toHaveBeenCalled();
+    },
+  );
+
+  it('refuses to record an attachment that belongs to another page', async () => {
+    const { service, attachmentRepo } = createService({
+      account,
+    });
+    attachmentRepo.findByIds.mockResolvedValue([
+      ownedAttachment({ pageId: 'page-2' }),
+    ]);
+
+    await expect(
+      service.registerPublishAssets(
+        [{ attachmentId, url: 'https://mmbiz.qpic.cn/photo' }],
+        'account-1',
+        session,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('reports which attachments already have an image-host url', async () => {
+    const { service, attachmentRepo } = createService({
+      account,
+      publishAsset: {
+        publish_url: 'https://mmbiz.qpic.cn/photo',
+        media_id: null,
+      },
+    });
+    attachmentRepo.findByIds.mockResolvedValue([ownedAttachment()]);
+
+    const result = await service.lookupPublishAssets(
+      [attachmentId],
+      'account-1',
+      session,
+    );
+
+    expect(result).toEqual([
+      {
+        attachmentId,
+        provider: 'wechat',
+        status: 'ready',
+        url: 'https://mmbiz.qpic.cn/photo',
+        retryable: false,
+      },
+    ]);
+  });
+
+  it('marks an unpublished attachment deferred rather than failed', async () => {
+    const { service, attachmentRepo } = createService({
+      account,
+    });
+    attachmentRepo.findByIds.mockResolvedValue([ownedAttachment()]);
+
+    const result = await service.lookupPublishAssets(
+      [attachmentId],
+      'account-1',
+      session,
+    );
+
+    expect(result).toEqual([
+      {
+        attachmentId,
+        provider: 'wechat',
+        status: 'deferred',
+        retryable: false,
+      },
+    ]);
+  });
+
+  it('omits an attachment from another page instead of reporting on it', async () => {
+    const { service, attachmentRepo } = createService({
+      account,
+    });
+    attachmentRepo.findByIds.mockResolvedValue([
+      ownedAttachment({ workspaceId: 'workspace-b' }),
+    ]);
+
+    await expect(
+      service.lookupPublishAssets([attachmentId], 'account-1', session),
+    ).resolves.toEqual([]);
+  });
+
+  const page = { id: 'page-1', spaceId: 'space-1', workspaceId: 'workspace-a' };
+
+  it('reports an unpublished image on the handoff as pending, not broken', async () => {
+    const { service, attachmentRepo, storage } = createService({ account });
+    attachmentRepo.findByIds.mockResolvedValue([ownedAttachment()]);
+
+    const result = await service.resolvePublishUrlsForPage({
+      page,
+      attachmentIds: [attachmentId],
+      accountId: 'account-1',
+    });
+
+    // There is no WeChat upload target any more, and treating its absence as an
+    // error would show every waiting image as failed the moment a page opens.
+    expect(result.get(attachmentId)).toEqual({
+      attachmentId,
+      provider: 'wechat',
+      status: 'deferred',
+      retryable: false,
+    });
+    expect(storage.read).not.toHaveBeenCalled();
+  });
+
+  it('reuses the image-host url the browser already recorded', async () => {
+    const { service, attachmentRepo } = createService({
+      account,
+      publishAsset: {
+        publish_url: 'https://mmbiz.qpic.cn/photo',
+        media_id: 'media-1',
+      },
+    });
+    attachmentRepo.findByIds.mockResolvedValue([ownedAttachment()]);
+
+    const result = await service.resolvePublishUrlsForPage({
+      page,
+      attachmentIds: [attachmentId],
+      accountId: 'account-1',
+    });
+
+    expect(result.get(attachmentId)).toEqual({
+      attachmentId,
+      provider: 'wechat',
+      status: 'ready',
+      url: 'https://mmbiz.qpic.cn/photo',
+      mediaId: 'media-1',
+      retryable: false,
+    });
+  });
+
+  it('answers an older editor build with a status instead of refusing outright', async () => {
+    const { service, attachmentRepo, storage } = createService({ account });
+    attachmentRepo.findById.mockResolvedValue(ownedAttachment());
+
+    // Pre-Plan-B clients still call this; it must not become a 400 they cannot
+    // act on, and it must never try to reach WeChat from here.
+    await expect(
+      service.publishAttachment(attachmentId, 'account-1', session),
+    ).resolves.toEqual({
+      attachmentId,
+      provider: 'wechat',
+      status: 'deferred',
+      retryable: false,
+    });
+    expect(storage.read).not.toHaveBeenCalled();
   });
 });

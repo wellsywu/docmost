@@ -1,4 +1,4 @@
-import type { DocmostBootstrapResponse, DocmostContentUpdateResponse, DocmostRoundtripRisk } from './types'
+import type { DocmostBootstrapResponse, DocmostContentUpdateResponse, DocmostImageSync, DocmostRoundtripRisk } from './types'
 import { ref } from 'vue'
 import { store } from '@/storage'
 import { useMpAccountsStore } from '@/stores/mpAccounts'
@@ -38,6 +38,8 @@ const roundtripRisk = ref<DocmostRoundtripRisk>({
 const conflictRemote = ref<DocmostContentUpdateResponse | null>(null)
 const baseline = ref<DocmostBaseline | null>(null)
 const pagePath = ref<string | null>(null)
+/** Which images still need an image-host URL before content can leave the editor. */
+const imageSync = ref<DocmostImageSync | null>(null)
 
 export const docmostIntegration = {
   mode,
@@ -55,6 +57,19 @@ export function isDocmostMode(): boolean {
   return mode.value
 }
 
+/**
+ * Swaps Docmost image URLs for image-host URLs in content that is about to leave
+ * the editor — clipboard HTML, a publish payload — uploading anything that has
+ * not been published yet.
+ *
+ * Outside Docmost mode this is a no-op, so callers can apply it unconditionally.
+ */
+export async function resolveDocmostExportContent(html: string): Promise<string> {
+  if (!mode.value)
+    return html
+  return await syncDocmostImageUrls(html, imageSync.value ?? undefined)
+}
+
 async function loadBootstrapContent(payload: DocmostBootstrapResponse): Promise<DocmostLoadedContent> {
   await applyDocmostSettings(payload.settings)
   await store.set(`docmostUploadProvider`, payload.uploadProvider ?? payload.uploadConfig?.provider ?? `wechat`)
@@ -62,10 +77,11 @@ async function loadBootstrapContent(payload: DocmostBootstrapResponse): Promise<
   const accountStore = useMpAccountsStore()
   accountStore.replaceAccounts(payload.accounts)
 
-  // The server hands over publish URLs for every image it could resolve itself.
-  // Anything left needs the account this browser selected, so finish it here
-  // before the content reaches the editor.
-  const markdown = await syncDocmostImageUrls(payload.markdown, payload.imageSync)
+  // The editor keeps Docmost's own image URLs. They render here, and WeChat's
+  // image host — which blocks hotlinking — would not, so the swap happens only
+  // when content leaves for the clipboard or a publish payload.
+  imageSync.value = payload.imageSync ?? null
+  const markdown = payload.markdown
 
   const postStore = usePostStore()
   const loaded = payload.pageId
@@ -212,9 +228,9 @@ export async function saveDocmostContent(
     })
     canEdit.value = result.canEdit
     roundtripRisk.value = result.roundtripRisk
-    // Docmost stores its own attachment URLs, so the echo comes back rewritten
-    // for the editor the same way the handoff was.
-    const savedMarkdown = await syncDocmostImageUrls(result.markdown, result.imageSync)
+    // The echo comes back on Docmost URLs, exactly as the editor holds them.
+    imageSync.value = result.imageSync ?? null
+    const savedMarkdown = result.markdown
     const postStore = usePostStore()
     if (postStore.currentPostId) {
       postStore.updateDocmostPostSnapshot(postStore.currentPostId, {

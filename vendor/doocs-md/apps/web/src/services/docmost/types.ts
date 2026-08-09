@@ -72,11 +72,34 @@ export interface DocmostAttachment {
 export interface DocmostPublishAsset {
   attachmentId: string
   provider: DocmostUploadProvider
-  status: 'ready' | 'failed'
+  /**
+   * `deferred` is not a failure: with browser-side publishing the image host is
+   * only contacted when the author copies or publishes, so an upload finishes
+   * with no publish URL yet and nothing has gone wrong.
+   */
+  status: 'ready' | 'failed' | 'deferred'
   url?: string
   mediaId?: string
   error?: string
   retryable: boolean
+}
+
+/**
+ * Everything the browser needs to reach WeChat itself, same shape standalone
+ * doocs keeps in its own `mpConfig`. `proxyOrigin` is required in practice:
+ * api.weixin.qq.com sends no CORS headers, so a page cannot call it directly.
+ */
+export interface DocmostWechatCredentials {
+  accountId: string
+  appId: string
+  appSecret: string
+  proxyOrigin: string | null
+}
+
+export interface DocmostPublishAssetEntry {
+  attachmentId: string
+  url: string
+  mediaId?: string
 }
 
 export interface DocmostUploadResponse {

@@ -2,10 +2,12 @@ import type {
   DocmostBootstrapResponse,
   DocmostContentUpdateResponse,
   DocmostPublishAsset,
+  DocmostPublishAssetEntry,
   DocmostPublishFileResponse,
   DocmostSetting,
   DocmostUploadConfig,
   DocmostUploadResponse,
+  DocmostWechatCredentials,
 } from './types'
 import type { SyncSetting } from '@/services/sync/types'
 import { clearDocmostSession, getDocmostSessionToken } from './session'
@@ -154,6 +156,42 @@ export async function uploadDocmostPublishFile(accountId: string | null, file: F
   return await authorizedRequest<DocmostPublishFileResponse>(`/upload/publish-file`, {
     method: `POST`,
     body,
+  })
+}
+
+/**
+ * Asks Docmost for the account's WeChat credentials so this browser can upload
+ * the way standalone doocs does. Docmost's own egress cannot reach WeChat — the
+ * IP whitelist covers the network this browser is on instead.
+ */
+export async function fetchDocmostWechatCredentials(accountId: string | null): Promise<DocmostWechatCredentials> {
+  return await authorizedRequest<DocmostWechatCredentials>(`/upload/wechat-credentials`, {
+    method: `POST`,
+    headers: { 'Content-Type': `application/json` },
+    body: JSON.stringify(accountId ? { accountId } : {}),
+  })
+}
+
+/** Records what this browser uploaded, so the next copy or publish reuses it. */
+export async function registerDocmostPublishAssets(
+  accountId: string | null,
+  assets: DocmostPublishAssetEntry[],
+): Promise<DocmostPublishAsset[]> {
+  return await authorizedRequest<DocmostPublishAsset[]>(`/upload/publish-assets`, {
+    method: `POST`,
+    headers: { 'Content-Type': `application/json` },
+    body: JSON.stringify(accountId ? { accountId, assets } : { assets }),
+  })
+}
+
+export async function lookupDocmostPublishAssets(
+  accountId: string | null,
+  attachmentIds: string[],
+): Promise<DocmostPublishAsset[]> {
+  return await authorizedRequest<DocmostPublishAsset[]>(`/upload/publish-assets/lookup`, {
+    method: `POST`,
+    headers: { 'Content-Type': `application/json` },
+    body: JSON.stringify(accountId ? { accountId, attachmentIds } : { attachmentIds }),
   })
 }
 

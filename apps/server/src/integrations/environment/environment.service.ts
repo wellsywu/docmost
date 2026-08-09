@@ -45,6 +45,21 @@ export class EnvironmentService {
     return this.configService.get<string>('APP_SECRET');
   }
 
+  /**
+   * Origin the doocs editor's browser should load Docmost attachments from.
+   *
+   * Defaults to APP_URL, which is right when there is one way in. It exists for
+   * deployments reached over more than one hostname — a LAN name alongside a
+   * public tunnel, say — where APP_URL names the public one and images would
+   * otherwise take a round trip out and back for a reader already on the LAN.
+   */
+  getDoocsAttachmentBaseUrl(): string {
+    return (
+      this.configService.get<string>('DOOCS_ATTACHMENT_BASE_URL')?.trim() ||
+      this.getAppUrl()
+    );
+  }
+
   getDatabaseURL(): string {
     return this.configService.get<string>('DATABASE_URL');
   }

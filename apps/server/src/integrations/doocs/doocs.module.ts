@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EnvHttpProxyAgent } from 'undici';
 import { CaslModule } from '../../core/casl/casl.module';
 import { AttachmentModule } from '../../core/attachment/attachment.module';
 import { PageModule } from '../../core/page/page.module';
@@ -19,8 +20,10 @@ import { DoocsS3UploadService } from './upload/s3/doocs-s3-upload.service';
 import { DoocsUploadService } from './upload/doocs-upload.service';
 import {
   WECHAT_FETCH,
+  WechatFetch,
   WechatApiService,
 } from './upload/wechat/wechat-api.service';
+import { TokenModule } from '../../core/auth/token.module';
 
 /**
  * Self-contained doocs/md integration. `app.module.ts` registers this module and
@@ -35,6 +38,9 @@ import {
     PageModule,
     DoocsConfigModule,
     DoocsDatabaseModule,
+    // For the attachment tokens that let the editor's <img> tags load Docmost
+    // images from its own origin.
+    TokenModule,
   ],
   controllers: [WechatAccountController, DoocsController],
   providers: [
@@ -51,7 +57,17 @@ import {
     WechatApiService,
     {
       provide: WECHAT_FETCH,
-      useFactory: () => globalThis.fetch.bind(globalThis),
+      useFactory: (): WechatFetch => {
+        // Node's built-in fetch does not honor HTTP(S)_PROXY by default. Only
+        // the account connection test reaches WeChat from here now; image
+        // uploads go from the browser.
+        const dispatcher = new EnvHttpProxyAgent();
+        return (input, init) =>
+          globalThis.fetch(input, {
+            ...init,
+            dispatcher,
+          } as RequestInit & { dispatcher: EnvHttpProxyAgent });
+      },
     },
   ],
 })

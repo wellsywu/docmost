@@ -2,15 +2,21 @@ import { WorkerEntrypoint } from 'cloudflare:workers'
 
 const MP_HOST = `https://api.weixin.qq.com`
 
+/**
+ * Transparent forward to api.weixin.qq.com.
+ *
+ * The browser cannot call the WeChat OpenAPI directly because it sends no CORS
+ * headers, and it cannot be called from the Docmost server either because the
+ * account whitelists the network the author is on, not the server's egress. So
+ * both standalone doocs and the Docmost-embedded editor upload through here,
+ * each carrying its own credentials.
+ */
 export default class extends WorkerEntrypoint {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
-
-    // e.g. /cgi-bin/stable_token → https://api.weixin.qq.com/cgi-bin/stable_token
     const targetUrl = `${MP_HOST}${url.pathname}${url.search}`
 
     const headers = new Headers(request.headers)
-
     headers.delete(`host`)
     headers.delete(`content-length`)
     headers.delete(`cf-connecting-ip`)
@@ -22,9 +28,8 @@ export default class extends WorkerEntrypoint {
       redirect: `follow`,
     }
 
-    if (request.method !== `GET` && request.method !== `HEAD`) {
+    if (request.method !== `GET` && request.method !== `HEAD`)
       init.body = request.body
-    }
 
     try {
       const resp = await fetch(targetUrl, init)

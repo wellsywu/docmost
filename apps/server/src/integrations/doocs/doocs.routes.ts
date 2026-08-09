@@ -23,6 +23,9 @@ const UNSCOPED_ROUTES = [
   'content/update',
   'upload',
   'upload/config',
+  'upload/wechat-credentials',
+  'upload/publish-assets',
+  'upload/publish-assets/lookup',
   'sessions/revoke',
 ] as const;
 

@@ -165,7 +165,7 @@ export function WechatAccountModal({
             label={t("Proxy domain")}
             placeholder={t("e.g. https://wechat.example.workers.dev")}
             description={t(
-              "Optional. WeChat only accepts access token requests from IPs on the official account whitelist. Set a proxy you control when the server's own IP cannot be whitelisted; the AppSecret is sent to this host.",
+              "Optional. WeChat only accepts access token requests from IPs on the official account whitelist. Set a proxy you control when the server's own IP cannot be whitelisted. The Docmost server, not your browser, must reach this HTTPS origin, and the AppSecret is sent to it.",
             )}
             maxLength={255}
             {...form.getInputProps("proxyOrigin")}

@@ -2,7 +2,7 @@
 import { AlertTriangle, Check, Copy, ExternalLink, Loader2, Menu, Palette, Save } from '@lucide/vue'
 import { defineAsyncComponent } from 'vue'
 import { useEditorRefresh } from '@/composables/useEditorRefresh'
-import { docmostIntegration, downloadDocmostLocalDraft, hasUnsavedDocmostChanges, isDocmostMode, markDocmostDirty, reloadDocmostConflictVersion, saveDocmostContent } from '@/services/docmost'
+import { docmostIntegration, downloadDocmostLocalDraft, hasUnsavedDocmostChanges, isDocmostMode, markDocmostDirty, reloadDocmostConflictVersion, resolveDocmostExportContent, saveDocmostContent } from '@/services/docmost'
 import { registerDocmostSaveShortcut } from '@/services/docmost/save-shortcut'
 import { generatePureHTML, processClipboardContent } from '@/services/export'
 import { useEditorStore } from '@/stores/editor'
@@ -179,7 +179,19 @@ async function copy() {
         clipboardDiv.focus()
         window.getSelection()?.removeAllRanges()
 
-        const temp = processedClipboardContent.html
+        // In Docmost mode the rendered HTML still points at Docmost-hosted
+        // images. WeChat drops images it does not host, so they are uploaded and
+        // rewritten here — at the moment the content leaves the editor, and not
+        // before, so the preview keeps showing pictures that actually load.
+        let temp: string
+        try {
+          temp = await resolveDocmostExportContent(processedClipboardContent.html)
+        }
+        catch (error) {
+          toast.error(t(`toast.processHtmlFailed`, { message: normalizeErrorMessage(error) }))
+          editorRefresh()
+          return
+        }
 
         if (copyMode.value === `txt`) {
           try {
