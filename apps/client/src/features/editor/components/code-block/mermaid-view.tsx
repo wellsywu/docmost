@@ -1,5 +1,5 @@
 import { NodeViewProps } from "@tiptap/react";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useReducer, useState } from "react";
 import mermaid from "mermaid";
 import { v4 as uuidv4 } from "uuid";
 import clsx from "clsx";
@@ -8,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import { useComputedColorScheme } from "@mantine/core";
 import DOMPurify from "dompurify";
 import { withControllableEdgeLabelBackground } from "./mermaid-svg";
+import { mermaidCacheKey, useMermaidCache } from "./mermaid-cache";
+import { useEditorEditable } from "@/features/editor/hooks/use-editor-editable.ts";
 
 // Lazy: keeps the lightbox bundle off the first-paint path. Exposed as a named
 // factory so we can also prefetch it before the first click (see effect below).
@@ -23,19 +25,30 @@ export default function MermaidView({ props }: MermaidViewProps) {
   const { t } = useTranslation();
   const computedColorScheme = useComputedColorScheme();
   const { node, editor } = props;
-  const [preview, setPreview] = useState<string>("");
+  const cache = useMermaidCache();
+  const cacheKey = mermaidCacheKey(node.textContent, computedColorScheme);
+  // Rendered output lives in the cache, not in component state, so that a node
+  // view rebuild repaints the diagram on its first frame instead of collapsing
+  // for as long as `mermaid.render()` takes.
+  const [renderCount, countRender] = useReducer(
+    (count: number) => count + 1,
+    0,
+  );
+  // What the cache cannot hold: error placeholders (their wording depends on
+  // the locale and on editability, neither of which is part of the key) and
+  // diagrams too large for the budget. Keyed, so output from an earlier source
+  // or palette never shows against the current one.
+  const [uncached, setUncached] = useState<{
+    key: string;
+    html: string;
+  } | null>(null);
   const [zoomOpened, setZoomOpened] = useState(false);
 
-  // Reading mode toggles via editor.setEditable() on the same instance, which
-  // doesn't reliably re-render node views — track it explicitly.
-  const [isEditable, setIsEditable] = useState(editor.isEditable);
-  useEffect(() => {
-    const sync = () => setIsEditable(editor.isEditable);
-    editor.on("transaction", sync);
-    return () => {
-      editor.off("transaction", sync);
-    };
-  }, [editor]);
+  // `peek` rather than `get`: a read during render must not reorder the cache.
+  const preview =
+    cache.peek(cacheKey) ?? (uncached?.key === cacheKey ? uncached.html : "");
+
+  const isEditable = useEditorEditable(editor);
 
   // Click-to-zoom is a reading-mode affordance and only makes sense for a
   // successfully rendered diagram (not the error placeholder).
@@ -59,26 +72,44 @@ export default function MermaidView({ props }: MermaidViewProps) {
 
   // Re-render the diagram whenever the node content or theme changes.
   useEffect(() => {
+    if (node.textContent.length === 0) return;
+    // A cache hit needs no work at all: `preview` already reads through to it.
+    // `get` (not `peek`) so the hit counts as a use for eviction ordering.
+    if (cache.get(cacheKey)) return;
+
+    // Rendering is async, so a fast edit can leave an earlier render in flight;
+    // without this guard it would land after the newer one and show stale output.
+    let cancelled = false;
     const id = `mermaid-${uuidv4()}`;
-    if (node.textContent.length > 0) {
-      mermaid
-        .render(id, node.textContent)
-        .then((item) => {
-          setPreview(withControllableEdgeLabelBackground(item.svg));
-        })
-        .catch((err) => {
-          if (props.editor.isEditable) {
-            setPreview(
-              `<div class="${classes.error}">${t("Mermaid diagram error:")} ${DOMPurify.sanitize(err)}</div>`,
-            );
-          } else {
-            setPreview(
-              `<div class="${classes.error}">${t("Invalid Mermaid diagram")}</div>`,
-            );
-          }
+
+    mermaid
+      .render(id, node.textContent)
+      .then((item) => {
+        const svg = withControllableEdgeLabelBackground(item.svg);
+        const stored = cache.set(cacheKey, svg);
+        if (cancelled) return;
+        // Holding a rejected (oversized) diagram locally matters for more than
+        // display: without it the effect would re-run, miss the cache again,
+        // and render the same diagram forever.
+        if (stored) countRender();
+        else setUncached({ key: cacheKey, html: svg });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setUncached({
+          key: cacheKey,
+          html: props.editor.isEditable
+            ? `<div class="${classes.error}">${t("Mermaid diagram error:")} ${DOMPurify.sanitize(err)}</div>`
+            : `<div class="${classes.error}">${t("Invalid Mermaid diagram")}</div>`,
         });
-    }
-  }, [node.textContent, computedColorScheme]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // `renderCount` re-runs this after a successful render so the cache read
+    // above settles; `cacheKey` already covers the source and the palette.
+  }, [cacheKey, cache, renderCount, node.textContent]);
 
   return (
     <>

@@ -25,6 +25,7 @@ import {
   ensureCodeLanguage,
   supportedCodeLanguages,
 } from "@/features/editor/extensions/lowlight.ts";
+import { useCodeSourceVisible } from "@/features/editor/hooks/use-code-source-visible.ts";
 
 const MermaidView = React.lazy(
   () => import("@/features/editor/components/code-block/mermaid-view.tsx"),
@@ -53,7 +54,7 @@ export default function CodeBlockView(props: NodeViewProps) {
   const [languageValue, setLanguageValue] = useState<string | null>(
     language || null,
   );
-  const [isSelected, setIsSelected] = useState(false);
+  const showSource = useCodeSourceVisible(editor, getPos(), node.nodeSize);
   const [collapsed, setCollapsed] = useState(false);
   const [languageSearch, setLanguageSearch] = useState("");
   const languageCombobox = useCombobox({
@@ -63,23 +64,6 @@ export default function CodeBlockView(props: NodeViewProps) {
       setLanguageSearch("");
     },
   });
-
-  useEffect(() => {
-    const updateSelection = () => {
-      const { state } = editor;
-      const { from, to } = state.selection;
-      // Check if the selection intersects with the node's range
-      const isNodeSelected =
-        (from >= getPos() && from < getPos() + node.nodeSize) ||
-        (to > getPos() && to <= getPos() + node.nodeSize);
-      setIsSelected(isNodeSelected);
-    };
-
-    editor.on("selectionUpdate", updateSelection);
-    return () => {
-      editor.off("selectionUpdate", updateSelection);
-    };
-  }, [editor, getPos(), node.nodeSize]);
 
   function changeLanguage(language: string | null) {
     setLanguageValue(language);
@@ -104,9 +88,7 @@ export default function CodeBlockView(props: NodeViewProps) {
 
   const lineCount = node.textContent.split("\n").length;
   const hideCode =
-    ((language === "mermaid" && !editor.isEditable) ||
-      (language === "mermaid" && !isSelected)) &&
-    node.textContent.length > 0;
+    language === "mermaid" && !showSource && node.textContent.length > 0;
 
   return (
     <NodeViewWrapper

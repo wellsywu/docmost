@@ -75,6 +75,7 @@ import { EditorAiMenu } from "@/ee/ai/components/editor/ai-menu/ai-menu";
 import { EditorLinkMenu } from "@/features/editor/components/link/link-menu";
 import ColumnsMenu from "@/features/editor/components/columns/columns-menu.tsx";
 import { TransclusionLookupProvider } from "@/features/editor/components/transclusion/transclusion-lookup-context";
+import { MermaidCacheProvider } from "@/features/editor/components/code-block/mermaid-cache";
 import { useTranslation } from "react-i18next";
 
 interface PageEditorProps {
@@ -417,64 +418,66 @@ export default function PageEditor({
   }, [yjsConnectionStatus, isSynced]);
 
   return (
-    <TransclusionLookupProvider>
-      {showStatic ? (
-        <EditorProvider
-          editable={false}
-          immediatelyRender={true}
-          extensions={mainExtensions}
-          content={content}
-          editorProps={{
-            attributes: {
-              "aria-label": t("Page content"),
-            },
-          }}
-        />
-      ) : (
-        <div className="editor-container" style={{ position: "relative" }}>
-          <div ref={menuContainerRef}>
-            <EditorContent editor={editor} />
-
-            {editor && (
-              <SearchAndReplaceDialog editor={editor} editable={editable} />
-            )}
-
-            {editor && editorIsEditable && (
-              <div>
-                <EditorAiMenu editor={editor} />
-                <EditorLinkMenu editor={editor} />
-                <EditorBubbleMenu editor={editor} />
-                <TableMenu editor={editor} />
-                <TableHandlesLayer editor={editor} />
-                <ImageMenu editor={editor} />
-                <VideoMenu editor={editor} />
-                <PdfMenu editor={editor} />
-                <CalloutMenu editor={editor} />
-                <SubpagesMenu editor={editor} />
-                <ExcalidrawMenu editor={editor} />
-                <DrawioMenu editor={editor} />
-                <ColumnsMenu editor={editor} />
-              </div>
-            )}
-            {editor &&
-              !editorIsEditable &&
-              (editable || canComment) &&
-              providersRef.current && <ReadonlyBubbleMenu editor={editor} />}
-            {showCommentPopup && (
-              <CommentDialog editor={editor} pageId={pageId} />
-            )}
-            {showReadOnlyCommentPopup && (
-              <CommentDialog editor={editor} pageId={pageId} readOnly />
-            )}
-          </div>
-          <div
-            onClick={() => {
-              if (editor && !editor.isDestroyed) editor.commands.focus("end");
+    <MermaidCacheProvider pageId={pageId}>
+      <TransclusionLookupProvider>
+        {showStatic ? (
+          <EditorProvider
+            editable={false}
+            immediatelyRender={true}
+            extensions={mainExtensions}
+            content={content}
+            editorProps={{
+              attributes: {
+                "aria-label": t("Page content"),
+              },
             }}
-            style={{ paddingBottom: "20vh" }}
-          ></div>
-        </div>
-      )}
-    </TransclusionLookupProvider>
+          />
+        ) : (
+          <div className="editor-container" style={{ position: "relative" }}>
+            <div ref={menuContainerRef}>
+              <EditorContent editor={editor} />
+
+              {editor && (
+                <SearchAndReplaceDialog editor={editor} editable={editable} />
+              )}
+
+              {editor && editorIsEditable && (
+                <div>
+                  <EditorAiMenu editor={editor} />
+                  <EditorLinkMenu editor={editor} />
+                  <EditorBubbleMenu editor={editor} />
+                  <TableMenu editor={editor} />
+                  <TableHandlesLayer editor={editor} />
+                  <ImageMenu editor={editor} />
+                  <VideoMenu editor={editor} />
+                  <PdfMenu editor={editor} />
+                  <CalloutMenu editor={editor} />
+                  <SubpagesMenu editor={editor} />
+                  <ExcalidrawMenu editor={editor} />
+                  <DrawioMenu editor={editor} />
+                  <ColumnsMenu editor={editor} />
+                </div>
+              )}
+              {editor &&
+                !editorIsEditable &&
+                (editable || canComment) &&
+                providersRef.current && <ReadonlyBubbleMenu editor={editor} />}
+              {showCommentPopup && (
+                <CommentDialog editor={editor} pageId={pageId} />
+              )}
+              {showReadOnlyCommentPopup && (
+                <CommentDialog editor={editor} pageId={pageId} readOnly />
+              )}
+            </div>
+            <div
+              onClick={() => {
+                if (editor && !editor.isDestroyed) editor.commands.focus("end");
+              }}
+              style={{ paddingBottom: "20vh" }}
+            ></div>
+          </div>
+        )}
+      </TransclusionLookupProvider>
+    </MermaidCacheProvider>
   );
 }
