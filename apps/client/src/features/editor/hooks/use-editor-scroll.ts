@@ -1,14 +1,41 @@
 import { Editor } from "@tiptap/react";
 import { useCallback, useEffect, useState } from "react";
 
-function waitForState(checkFn: () => boolean): Promise<void> {
+const POLL_INTERVAL_MS = 800;
+/** ~30s: far longer than any real mount, short enough to never pile up. */
+const MAX_POLLS = 40;
+
+/**
+ * Polls `checkFn` until it passes (`true`), `shouldAbort` fires, or the poll
+ * budget runs out (`false`).
+ *
+ * The bound matters more than it looks: the caller's closure holds a whole
+ * editor. An editor created for a render React later discarded never mounts,
+ * so `checkFn` never passes — an unbounded interval kept every such editor
+ * (and its detached DOM) alive forever, which is how a livelocked first load
+ * ran the tab out of memory. Aborting on `editor.isDestroyed` releases it on
+ * the first tick, since Tiptap destroys editors whose component never mounted.
+ */
+export function waitForState(
+  checkFn: () => boolean,
+  shouldAbort: () => boolean = () => false,
+  { intervalMs = POLL_INTERVAL_MS, maxPolls = MAX_POLLS } = {},
+): Promise<boolean> {
   return new Promise((resolve) => {
+    let polls = 0;
     const interval = setInterval(() => {
-      if (checkFn()) {
+      polls += 1;
+      if (shouldAbort()) {
         clearInterval(interval);
-        resolve();
+        resolve(false);
+      } else if (checkFn()) {
+        clearInterval(interval);
+        resolve(true);
+      } else if (polls >= maxPolls) {
+        clearInterval(interval);
+        resolve(false);
       }
-    }, 800);
+    }, intervalMs);
   });
 }
 
@@ -27,36 +54,49 @@ export const useEditorScroll = ({
     }
   }, [initialScrollTo]);
 
-  const handleScrollTo = useCallback(async (editor: Editor, _scrollTo: string | null = null, tryCount: number = 0) => {
-    await waitForState(() => canScroll());
-    return new Promise((resolve) => {
-      const MAX_TRY_COUNT = 10;
-      if (tryCount >= MAX_TRY_COUNT) {
-        resolve(false);
-        return;
-      }
+  const handleScrollTo = useCallback(
+    async (
+      editor: Editor,
+      _scrollTo: string | null = null,
+      tryCount: number = 0,
+    ) => {
+      const ready = await waitForState(
+        () => canScroll(),
+        () => editor.isDestroyed,
+      );
+      if (!ready) return false;
+      return new Promise((resolve) => {
+        const MAX_TRY_COUNT = 10;
+        if (tryCount >= MAX_TRY_COUNT) {
+          resolve(false);
+          return;
+        }
 
-      const targetId = _scrollTo || scrollTo;
-      if (!targetId) {
-        resolve(false);
-        return;
-      }
+        const targetId = _scrollTo || scrollTo;
+        if (!targetId) {
+          resolve(false);
+          return;
+        }
 
-      if (editor.isDestroyed) {
-        resolve(false);
-        return;
-      }
-      const dom = editor.view.dom.querySelector(`[id="${targetId}"], [data-id="${targetId}"]`);
-      if (dom) {
-        dom.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        resolve(true);
-      } else {
-        setTimeout(async () => {
-          resolve(await handleScrollTo(editor, targetId, tryCount + 1));
-        }, 200);
-      }
-    });
-  }, [scrollTo, canScroll]);
+        if (editor.isDestroyed) {
+          resolve(false);
+          return;
+        }
+        const dom = editor.view.dom.querySelector(
+          `[id="${targetId}"], [data-id="${targetId}"]`,
+        );
+        if (dom) {
+          dom.scrollIntoView({ behavior: "smooth", block: "start" });
+          resolve(true);
+        } else {
+          setTimeout(async () => {
+            resolve(await handleScrollTo(editor, targetId, tryCount + 1));
+          }, 200);
+        }
+      });
+    },
+    [scrollTo, canScroll],
+  );
 
   return { scrollTo, handleScrollTo };
 };

@@ -251,7 +251,11 @@ export default function PageEditor({
     {
       extensions,
       editable,
-      immediatelyRender: true,
+      // Not during render: Tiptap would build and mount the whole editor inside
+      // a `useState` initializer, i.e. once per render attempt — including the
+      // ones concurrent React throws away. The static EditorProvider below
+      // covers first paint, so creating this one after commit costs nothing.
+      immediatelyRender: false,
       shouldRerenderOnTransaction: false,
       editorProps: {
         scrollThreshold: 80,
@@ -308,14 +312,9 @@ export default function PageEditor({
         },
       },
       onCreate({ editor }) {
-        if (editor) {
-          // @ts-ignore
-          setEditor(editor);
-          // @ts-ignore
-          editor.storage.pageId = pageId;
-          handleScrollTo(editor);
-          editorRef.current = editor;
-        }
+        // Plain mutation, no React update — safe even for a discarded render.
+        // @ts-ignore
+        editor.storage.pageId = pageId;
       },
       onUpdate({ editor }) {
         if (editor.isEmpty) return;
@@ -325,6 +324,19 @@ export default function PageEditor({
     },
     [pageId, editable, extensions],
   );
+
+  // Wiring that used to live in `onCreate`. `onCreate` fires for every editor
+  // Tiptap builds, even one whose render React discards — and from there
+  // `setEditor` (a global atom write) interrupted the in-flight render, which
+  // remounted this component, built another editor, and looped: a blank page
+  // that ran the tab out of memory. An effect only runs for a committed editor.
+  useEffect(() => {
+    if (!editor) return;
+    editorRef.current = editor;
+    // @ts-ignore
+    setEditor(editor);
+    handleScrollTo(editor);
+  }, [editor]);
 
   const editorIsEditable = useEditorState({
     editor,
