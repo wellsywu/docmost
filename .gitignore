@@ -69,3 +69,12 @@ deploy/
 !vendor/doocs-md/apps/web/src/services/docmost/save-shortcut.test.ts
 !apps/publisher/test/**
 AGENT.md
+
+.omx/
+.github/
+.antigravity/
+
+.agents/
+.cursor/
+docs/
+AGENTS.md
