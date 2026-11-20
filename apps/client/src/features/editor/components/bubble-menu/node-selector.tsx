@@ -18,6 +18,7 @@ import {
 import { Popover, Button, ScrollArea, Tooltip } from "@mantine/core";
 import type { Editor } from "@tiptap/react";
 import { useEditorState } from "@tiptap/react";
+import { areNodesActive } from "@/features/editor/utils/batch-active.ts";
 import { useTranslation } from "react-i18next";
 import { isEditorReady } from "@docmost/editor-ext";
 import classes from "./bubble-menu.module.css";
@@ -49,19 +50,49 @@ export const NodeSelector: FC<NodeSelectorProps> = ({
         return null;
       }
 
+      // All twelve answers come out of one walk of the selection instead of
+      // twelve — this selector runs on every transaction. See batch-active.ts.
+      const [
+        isParagraph,
+        isBulletList,
+        isOrderedList,
+        isHeading1,
+        isHeading2,
+        isHeading3,
+        isTaskItem,
+        isBlockquote,
+        isCodeBlock,
+        isCallout,
+        isDetails,
+        isTransclusionSource,
+      ] = areNodesActive(ctx.editor, [
+        { name: "paragraph" },
+        { name: "bulletList" },
+        { name: "orderedList" },
+        { name: "heading", attrs: { level: 1 } },
+        { name: "heading", attrs: { level: 2 } },
+        { name: "heading", attrs: { level: 3 } },
+        { name: "taskItem" },
+        { name: "blockquote" },
+        { name: "codeBlock" },
+        { name: "callout" },
+        { name: "details" },
+        { name: "transclusionSource" },
+      ]);
+
       return {
-        isParagraph: ctx.editor.isActive("paragraph"),
-        isBulletList: ctx.editor.isActive("bulletList"),
-        isOrderedList: ctx.editor.isActive("orderedList"),
-        isHeading1: ctx.editor.isActive("heading", { level: 1 }),
-        isHeading2: ctx.editor.isActive("heading", { level: 2 }),
-        isHeading3: ctx.editor.isActive("heading", { level: 3 }),
-        isTaskItem: ctx.editor.isActive("taskItem"),
-        isBlockquote: ctx.editor.isActive("blockquote"),
-        isCodeBlock: ctx.editor.isActive("codeBlock"),
-        isCallout: ctx.editor.isActive("callout"),
-        isDetails: ctx.editor.isActive("details"),
-        isTransclusionSource: ctx.editor.isActive("transclusionSource"),
+        isParagraph,
+        isBulletList,
+        isOrderedList,
+        isHeading1,
+        isHeading2,
+        isHeading3,
+        isTaskItem,
+        isBlockquote,
+        isCodeBlock,
+        isCallout,
+        isDetails,
+        isTransclusionSource,
       };
     },
   });

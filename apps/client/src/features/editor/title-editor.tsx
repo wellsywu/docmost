@@ -28,6 +28,11 @@ import localEmitter from "@/lib/local-emitter.ts";
 import { PageEditMode } from "@/features/user/types/user.types.ts";
 import { searchSpotlight } from "@/features/search/constants.ts";
 import { platformModifierKey } from "@/lib";
+import {
+  readTitleEditorState,
+  shouldAutoFocusTitle,
+  shouldSyncTitleFromProp,
+} from "@/features/editor/utils/title-editor-decisions.ts";
 
 export interface TitleEditorProps {
   pageId: string;
@@ -160,21 +165,26 @@ export function TitleEditor({
   const debounceUpdate = useDebouncedCallback(saveTitle, 500);
 
   useEffect(() => {
-    if (
-      titleEditor &&
-      !titleEditor.isDestroyed &&
-      title !== titleEditor.getText()
-    ) {
-      titleEditor.commands.setContent(title);
+    if (!titleEditor) return;
+    if (!shouldSyncTitleFromProp(readTitleEditorState(titleEditor), title)) {
+      return;
     }
+    // `emitUpdate: false`: the default is true in Tiptap v3, and an emitted
+    // update would run onUpdate -> debounceUpdate, saving the value we just
+    // took from the server straight back to it.
+    titleEditor.commands.setContent(title, { emitUpdate: false });
   }, [pageId, title, titleEditor]);
 
   useEffect(() => {
-    setTimeout(() => {
+    if (!titleEditor) return;
+    const timeout = setTimeout(() => {
       // guard against Cannot access view['hasFocus'] error
-      if (!titleEditor?.isInitialized) return;
-      titleEditor?.commands?.focus("end");
+      if (!titleEditor.isInitialized) return;
+      const state = readTitleEditorState(titleEditor);
+      if (!shouldAutoFocusTitle(state, document.activeElement)) return;
+      titleEditor.commands.focus("end");
     }, 300);
+    return () => clearTimeout(timeout);
   }, [titleEditor]);
 
   useEffect(() => {
@@ -186,7 +196,9 @@ export function TitleEditor({
 
   useEffect(() => {
     if (!titleEditor) return;
-    titleEditor.setEditable(editable && currentPageEditMode === PageEditMode.Edit);
+    titleEditor.setEditable(
+      editable && currentPageEditMode === PageEditMode.Edit,
+    );
   }, [currentPageEditMode, titleEditor, editable]);
 
   const openSearchDialog = () => {

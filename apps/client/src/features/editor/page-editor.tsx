@@ -319,9 +319,8 @@ export default function PageEditor({
       },
       onUpdate({ editor }) {
         if (editor.isEmpty) return;
-        const editorJson = editor.getJSON();
         //update local page cache to reduce flickers
-        debouncedUpdateContent(editorJson);
+        debouncedUpdateContent();
       },
     },
     [pageId, editable, extensions],
@@ -334,15 +333,20 @@ export default function PageEditor({
     },
   });
 
-  const debouncedUpdateContent = useDebouncedCallback((newContent: any) => {
-    const pageData = queryClient.getQueryData<IPage>(["pages", slugId]);
+  const debouncedUpdateContent = useDebouncedCallback(() => {
+    const currentEditor = editorRef.current;
+    if (!currentEditor || currentEditor.isDestroyed) return;
 
-    if (pageData) {
-      queryClient.setQueryData(["pages", slugId], {
-        ...pageData,
-        content: newContent,
-      });
-    }
+    const pageData = queryClient.getQueryData<IPage>(["pages", slugId]);
+    if (!pageData) return;
+
+    // Serialising here rather than in `onUpdate`: `getJSON()` walks the whole
+    // document, so doing it per keystroke made typing in a long page heavy.
+    // The debounce only ever guarded the cache write, never this.
+    queryClient.setQueryData(["pages", slugId], {
+      ...pageData,
+      content: currentEditor.getJSON(),
+    });
   }, 3000);
 
   const handleActiveCommentEvent = (event) => {

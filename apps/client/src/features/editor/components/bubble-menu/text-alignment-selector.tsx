@@ -10,6 +10,7 @@ import {
 import { Menu, Button, Tooltip, rem } from "@mantine/core";
 import type { Editor } from "@tiptap/react";
 import { useEditorState } from "@tiptap/react";
+import { areAttrsActive } from "@/features/editor/utils/batch-active.ts";
 import { useTranslation } from "react-i18next";
 import { isEditorReady } from "@docmost/editor-ext";
 
@@ -40,12 +41,17 @@ export const TextAlignmentSelector: FC<TextAlignmentProps> = ({
         return null;
       }
 
-      return {
-        isAlignLeft: ctx.editor.isActive({ textAlign: "left" }),
-        isAlignCenter: ctx.editor.isActive({ textAlign: "center" }),
-        isAlignRight: ctx.editor.isActive({ textAlign: "right" }),
-        isAlignJustify: ctx.editor.isActive({ textAlign: "justify" }),
-      };
+      // `isActive({ … })` is node-or-mark, so each of these four probes was two
+      // full walks of the selection — on every transaction. See batch-active.ts.
+      const [isAlignLeft, isAlignCenter, isAlignRight, isAlignJustify] =
+        areAttrsActive(ctx.editor, [
+          { textAlign: "left" },
+          { textAlign: "center" },
+          { textAlign: "right" },
+          { textAlign: "justify" },
+        ]);
+
+      return { isAlignLeft, isAlignCenter, isAlignRight, isAlignJustify };
     },
   });
 
